@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl
+  StyleSheet, RefreshControl, Share, Alert
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -12,8 +12,12 @@ import TavsiyeKutu from '../components/TavsiyeKutu';
 import COLORS from '../theme/colors';
 import {
   getHayvanlar, getHaftalikKayitlar, getYemAlimlar,
-  getSatislar, getAktifModul
+  getSatislar, getSaglikKayitlar, getAktifModul, getAyarlar,
 } from '../data/storage';
+import {
+  toplamMaliyet, tahminiSatisGeliri, tahminiKarZarar,
+  besiGunuHesapla, gunlukCanliAgirlikArtisi,
+} from '../utils/hesaplama';
 
 export default function RaporScreen() {
   const [aktifModul, setModul] = useState('besi');
@@ -21,13 +25,17 @@ export default function RaporScreen() {
   const [kayitlar, setKayitlar] = useState([]);
   const [yemAlimlar, setYemAlimlar] = useState([]);
   const [satislar, setSatislar] = useState([]);
+  const [saglikKayitlar, setSaglikKayitlar] = useState([]);
+  const [ayarlar, setAyarlar] = useState(null);
   const [seciliHayvan, setSeciliHayvan] = useState(null);
   const [aktifTab, setAktifTab] = useState('tavsiye');
   const [yenileniyor, setYenileniyor] = useState(false);
 
   const veriYukle = async () => {
     const modul = await getAktifModul();
-    setModul(modul);
+    setModul(modul || 'besi');
+    const a = await getAyarlar();
+    setAyarlar(a);
     const h = await getHayvanlar();
     setHayvanlar(h);
     const k = await getHaftalikKayitlar();
@@ -36,8 +44,11 @@ export default function RaporScreen() {
     setYemAlimlar(y);
     const s = await getSatislar();
     setSatislar(s);
-    if (h.filter(x => !x.satildiMi).length > 0 && !seciliHayvan) {
-      setSeciliHayvan(h.filter(x => !x.satildiMi)[0]);
+    const sk = await getSaglikKayitlar();
+    setSaglikKayitlar(sk);
+    const aktifler = h.filter(x => !x.satildiMi);
+    if (aktifler.length > 0 && !seciliHayvan) {
+      setSeciliHayvan(aktifler[0]);
     }
   };
 
@@ -50,61 +61,89 @@ export default function RaporScreen() {
   };
 
   const modulRenk = aktifModul === 'besi' ? COLORS.besi : COLORS.suru;
-
   const aktifHayvanlar = hayvanlar.filter(h => !h.satildiMi);
   const satilanlar = hayvanlar.filter(h => h.satildiMi);
 
-  // Seçili hayvanın yem maliyeti tahmini
-  const hayvanYemMaliyet = () => {
-    if (!seciliHayvan) return 0;
-    const toplamYemMaliyet = yemAlimlar.reduce((acc, a) => acc + parseFloat(a.fiyat || 0), 0);
-    const hayvanSayisi = hayvanlar.length || 1;
-    return Math.round(toplamYemMaliyet / hayvanSayisi);
-  };
+  // Seçili hayvanın tartım kayıtları
+  const seciliKayitlar = kayitlar.filter(k => k.hayvanId === seciliHayvan?.id);
 
   // Aylık özet
   const aylikOzet = () => {
     const simdi = new Date();
     const buAy = kayitlar.filter(k => {
       const t = new Date(k.olusturmaTarihi);
-      return t.getMonth() === simdi.getMonth() && t.getFullYear() === simdi.getFullYear();
+      return (
+        t.getMonth() === simdi.getMonth() &&
+        t.getFullYear() === simdi.getFullYear()
+      );
     });
-
     const toplamYem = buAy.reduce((acc, k) => {
-      return acc + parseFloat(k.besiYemi || 0) + parseFloat(k.saman || 0) +
+      return acc +
+        parseFloat(k.besiYemi || 0) + parseFloat(k.saman || 0) +
         parseFloat(k.silaj || 0) + parseFloat(k.arpa || 0) +
         parseFloat(k.misir || 0) + parseFloat(k.yonca || 0);
     }, 0);
-
-    const toplamKiloArtis = buAy.reduce((acc, k) => {
-      const hayvan = hayvanlar.find(h => h.id === k.hayvanId);
-      if (!hayvan) return acc;
-      return acc;
-    }, 0);
-
-    return {
-      tartimSayisi: buAy.length,
-      toplamYem: toplamYem.toFixed(0),
-      kayitSayisi: buAy.length,
-    };
+    return { tartimSayisi: buAy.length, toplamYem: toplamYem.toFixed(0) };
   };
 
-  // Genel kar/zarar özeti
-  const genelKar = () => {
-    const toplamSatisTutari = satilanlar.reduce((acc, h) => acc + parseFloat(h.satisFiyati || 0), 0);
-    const toplamAlisTutari = satilanlar.reduce((acc, h) => acc + parseFloat(h.alisFiyat || 0), 0);
-    const toplamYemMaliyet = yemAlimlar.reduce((acc, a) => acc + parseFloat(a.fiyat || 0), 0);
-    const toplamMaliyet = toplamAlisTutari + toplamYemMaliyet;
-    const kar = toplamSatisTutari - toplamMaliyet;
-    return { toplamSatisTutari, toplamMaliyet, kar };
+  // Genel finansal özet
+  const genelFinans = () => {
+    const toplamSatis = satilanlar.reduce((acc, h) => acc + parseFloat(h.satisFiyati || 0), 0);
+    const toplamAlis = satilanlar.reduce((acc, h) => acc + parseFloat(h.alisFiyat || 0), 0);
+    const toplamYem = yemAlimlar.reduce((acc, a) => acc + parseFloat(a.fiyat || 0), 0);
+    const kar = toplamSatis - toplamAlis - toplamYem;
+    return { toplamSatis, toplamAlis, toplamYem, kar };
+  };
+
+  // WhatsApp raporu
+  const whatsappGonder = async () => {
+    try {
+      const simdi = new Date();
+      const tarih = `${simdi.getDate().toString().padStart(2, '0')}.${(simdi.getMonth() + 1).toString().padStart(2, '0')}.${simdi.getFullYear()}`;
+      const finans = genelFinans();
+      const ozet = aylikOzet();
+
+      let metin = `🐄 REÇBER RAPORU — ${tarih}\n`;
+      metin += `${'─'.repeat(30)}\n\n`;
+
+      // Aktif hayvanlar
+      metin += `📊 AKTİF HAYVANLAR (${aktifHayvanlar.length} baş)\n`;
+      aktifHayvanlar.forEach(h => {
+        const gun = besiGunuHesapla(h);
+        const hKayitlar = kayitlar.filter(k => k.hayvanId === h.id);
+        const gcaa = gunlukCanliAgirlikArtisi(h, hKayitlar);
+        const kgFark = parseFloat(h.guncelKilo || 0) - parseFloat(h.alisKilo || 0);
+        metin += `\n• ${h.isim}\n`;
+        metin += `  Besi: ${gun} gün | Kilo: ${h.alisKilo}→${h.guncelKilo} kg (+${kgFark.toFixed(0)} kg)\n`;
+        metin += `  GCAA: ${gcaa} kg/gün | Durum: ${h.saglik === 'saglikli' ? 'Sağlıklı ✅' : 'Takipte ⚠️'}\n`;
+      });
+
+      metin += `\n${'─'.repeat(30)}\n`;
+      metin += `🌾 BU AY YEM: ${ozet.toplamYem} kg (${ozet.tartimSayisi} tartım)\n`;
+      metin += `\n${'─'.repeat(30)}\n`;
+
+      // Yem stokları
+      metin += `\n💰 FİNANSAL ÖZET\n`;
+      metin += `  Toplam Satış: ${Math.round(finans.toplamSatis).toLocaleString('tr-TR')} TL\n`;
+      metin += `  Toplam Yem: ${Math.round(finans.toplamYem).toLocaleString('tr-TR')} TL\n`;
+      metin += `  Net: ${finans.kar >= 0 ? '+' : ''}${Math.round(finans.kar).toLocaleString('tr-TR')} TL\n`;
+
+      metin += `\n${'─'.repeat(30)}\n`;
+      metin += `Reçber uygulaması ile oluşturuldu.`;
+
+      await Share.share({ message: metin, title: `Reçber Raporu ${tarih}` });
+    } catch (e) {
+      Alert.alert('Hata', 'Rapor paylaşılırken bir sorun oluştu.');
+    }
   };
 
   const ozet = aylikOzet();
-  const kar = genelKar();
+  const finans = genelFinans();
+
   const tabs = [
     { key: 'tavsiye', label: 'Sat/Bekle', ikon: 'calculator-variant' },
     { key: 'aylik', label: 'Bu Ay', ikon: 'calendar-month' },
-    { key: 'ozet', label: 'Genel Özet', ikon: 'chart-bar' },
+    { key: 'ozet', label: 'Genel', ikon: 'chart-bar' },
   ];
 
   return (
@@ -113,6 +152,8 @@ export default function RaporScreen() {
         baslik="Raporlar"
         altBaslik="Analiz & Tavsiye"
         modulRenk={modulRenk}
+        sagIcon="whatsapp"
+        sagOnPress={whatsappGonder}
       />
 
       {/* Tab Bar */}
@@ -123,8 +164,13 @@ export default function RaporScreen() {
             style={[styles.tab, aktifTab === t.key && { borderBottomColor: modulRenk, borderBottomWidth: 2 }]}
             onPress={() => setAktifTab(t.key)}
           >
-            <MaterialCommunityIcons name={t.ikon} size={15} color={aktifTab === t.key ? modulRenk : COLORS.textLight} />
-            <Text style={[styles.tabYazi, aktifTab === t.key && { color: modulRenk }]}>{t.label}</Text>
+            <MaterialCommunityIcons
+              name={t.ikon} size={15}
+              color={aktifTab === t.key ? modulRenk : COLORS.textLight}
+            />
+            <Text style={[styles.tabYazi, aktifTab === t.key && { color: modulRenk }]}>
+              {t.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -135,7 +181,7 @@ export default function RaporScreen() {
         refreshControl={<RefreshControl refreshing={yenileniyor} onRefresh={onYenile} tintColor={modulRenk} />}
       >
 
-        {/* SAT/BEKLE TAB */}
+        {/* ─── SAT/BEKLE TAB ─── */}
         {aktifTab === 'tavsiye' && (
           <View>
             {aktifHayvanlar.length === 0 ? (
@@ -155,8 +201,7 @@ export default function RaporScreen() {
                       onPress={() => setSeciliHayvan(h)}
                     >
                       <MaterialCommunityIcons
-                        name="cow"
-                        size={16}
+                        name="cow" size={16}
                         color={seciliHayvan?.id === h.id ? '#fff' : modulRenk}
                       />
                       <Text style={[styles.hayvanCipYazi, seciliHayvan?.id === h.id && { color: '#fff' }]}>
@@ -171,16 +216,26 @@ export default function RaporScreen() {
                   <View style={styles.seciliOzet}>
                     <OzetSatir label="Alış Kilosu" deger={`${seciliHayvan.alisKilo} kg`} />
                     <OzetSatir label="Güncel Kilo" deger={`${seciliHayvan.guncelKilo} kg`} />
-                    <OzetSatir label="Alış Fiyatı" deger={seciliHayvan.alisFiyat ? `${parseFloat(seciliHayvan.alisFiyat).toLocaleString('tr-TR')} TL` : '-'} />
-                    <OzetSatir label="Tahmini Yem Maliyeti" deger={`${hayvanYemMaliyet().toLocaleString('tr-TR')} TL`} son />
+                    <OzetSatir label="Besi Günü" deger={`${besiGunuHesapla(seciliHayvan)} gün`} />
+                    <OzetSatir
+                      label="Alış Fiyatı"
+                      deger={seciliHayvan.alisFiyat
+                        ? `${parseFloat(seciliHayvan.alisFiyat).toLocaleString('tr-TR')} TL`
+                        : '-'}
+                      son
+                    />
                   </View>
                 )}
 
                 {/* Tavsiye Kutu */}
-                {seciliHayvan && (
+                {seciliHayvan && ayarlar && (
                   <TavsiyeKutu
                     hayvan={seciliHayvan}
-                    toplamYemMaliyet={hayvanYemMaliyet()}
+                    tartimlar={seciliKayitlar}
+                    yemAlimlar={yemAlimlar}
+                    saglikKayitlar={saglikKayitlar}
+                    tumHayvanlar={hayvanlar}
+                    varsayilanAyarlar={ayarlar}
                   />
                 )}
               </View>
@@ -188,7 +243,7 @@ export default function RaporScreen() {
           </View>
         )}
 
-        {/* AYLIK TAB */}
+        {/* ─── AYLIK TAB ─── */}
         {aktifTab === 'aylik' && (
           <View>
             <Text style={styles.bolumBaslik}>
@@ -202,12 +257,41 @@ export default function RaporScreen() {
               <AylikKart ikon="check-circle" baslik="Satılan" deger={satilanlar.length} birim="baş" renk={COLORS.textSecondary} />
             </View>
 
-            {/* Tartım Geçmişi */}
-            <Text style={[styles.bolumBaslik, { marginTop: 8 }]}>Son Tartımlar</Text>
+            {/* Aktif Hayvan Durumları */}
+            <Text style={[styles.bolumBaslik, { marginTop: 8 }]}>Hayvan Durumları</Text>
+            {aktifHayvanlar.length === 0 ? (
+              <BosDurum ikon="cow-off" mesaj="Aktif hayvan yok" />
+            ) : (
+              aktifHayvanlar.map(h => {
+                const gun = besiGunuHesapla(h);
+                const hKayitlar = kayitlar.filter(k => k.hayvanId === h.id);
+                const gcaa = gunlukCanliAgirlikArtisi(h, hKayitlar);
+                const kgFark = parseFloat(h.guncelKilo || 0) - parseFloat(h.alisKilo || 0);
+                return (
+                  <View key={h.id} style={styles.hayvanDurumKart}>
+                    <View style={[styles.hayvanDurumIkon, { backgroundColor: modulRenk }]}>
+                      <MaterialCommunityIcons name="cow" size={18} color="#fff" />
+                    </View>
+                    <View style={styles.hayvanDurumBilgi}>
+                      <Text style={styles.hayvanDurumIsim}>{h.isim}</Text>
+                      <Text style={styles.hayvanDurumAlt}>
+                        {gun} gün • {h.guncelKilo} kg • GCAA: {gcaa} kg/gün
+                      </Text>
+                    </View>
+                    <Text style={[styles.hayvanDurumFark, { color: kgFark >= 0 ? COLORS.success : COLORS.danger }]}>
+                      {kgFark >= 0 ? '+' : ''}{kgFark.toFixed(0)} kg
+                    </Text>
+                  </View>
+                );
+              })
+            )}
+
+            {/* Son Tartımlar */}
+            <Text style={[styles.bolumBaslik, { marginTop: 16 }]}>Son Tartımlar</Text>
             {kayitlar.length === 0 ? (
               <BosDurum ikon="scale-off" mesaj="Bu ay tartım kaydı yok" />
             ) : (
-              kayitlar.slice(0, 10).map((k, i) => {
+              kayitlar.slice(0, 8).map((k, i) => {
                 const h = hayvanlar.find(x => x.id === k.hayvanId);
                 return (
                   <View key={k.id} style={styles.tartimSatir}>
@@ -216,7 +300,7 @@ export default function RaporScreen() {
                     </View>
                     <View style={styles.tartimBilgi}>
                       <Text style={styles.tartimHayvan}>{h?.isim || 'Bilinmiyor'}</Text>
-                      <Text style={styles.tartimAlt}>{k.tarih}</Text>
+                      <Text style={styles.tartimAlt}>{k.tarih} • Yem: {k.toplam?.toFixed(0) || 0} kg</Text>
                     </View>
                     <Text style={[styles.tartimKilo, { color: modulRenk }]}>{k.kilo} kg</Text>
                   </View>
@@ -226,39 +310,39 @@ export default function RaporScreen() {
           </View>
         )}
 
-        {/* GENEL ÖZET TAB */}
+        {/* ─── GENEL TAB ─── */}
         {aktifTab === 'ozet' && (
           <View>
             {/* Finansal Özet */}
             <View style={styles.finansalKart}>
               <Text style={styles.finansalBaslik}>💰 Finansal Özet</Text>
 
-              <View style={styles.finansalSatir}>
-                <Text style={styles.finansalLabel}>Toplam Satış Geliri</Text>
-                <Text style={[styles.finansalDeger, { color: COLORS.success }]}>
-                  {Math.round(kar.toplamSatisTutari).toLocaleString('tr-TR')} TL
-                </Text>
-              </View>
-              <View style={styles.finansalSatir}>
-                <Text style={styles.finansalLabel}>Toplam Maliyet</Text>
-                <Text style={[styles.finansalDeger, { color: COLORS.danger }]}>
-                  {Math.round(kar.toplamMaliyet).toLocaleString('tr-TR')} TL
-                </Text>
-              </View>
+              <FinansSatir label="Toplam Satış Geliri" deger={`${Math.round(finans.toplamSatis).toLocaleString('tr-TR')} TL`} renk={COLORS.success} />
+              <FinansSatir label="Toplam Alış Maliyeti" deger={`${Math.round(finans.toplamAlis).toLocaleString('tr-TR')} TL`} renk={COLORS.danger} />
+              <FinansSatir label="Toplam Yem Maliyeti" deger={`${Math.round(finans.toplamYem).toLocaleString('tr-TR')} TL`} renk={COLORS.warning} />
 
-              <View style={[styles.karKutu, { backgroundColor: kar.kar >= 0 ? COLORS.success + '15' : COLORS.danger + '15' }]}>
+              <View style={[styles.karKutu, {
+                backgroundColor: finans.kar >= 0 ? COLORS.success + '15' : COLORS.danger + '15'
+              }]}>
                 <Text style={styles.karBaslik}>NET KAR / ZARAR</Text>
-                <Text style={[styles.karDeger, { color: kar.kar >= 0 ? COLORS.success : COLORS.danger }]}>
-                  {kar.kar >= 0 ? '+' : ''}{Math.round(kar.kar).toLocaleString('tr-TR')} TL
+                <Text style={[styles.karDeger, { color: finans.kar >= 0 ? COLORS.success : COLORS.danger }]}>
+                  {finans.kar >= 0 ? '+' : ''}{Math.round(finans.kar).toLocaleString('tr-TR')} TL
                 </Text>
-                <Text style={styles.karAlt}>
-                  {satilanlar.length} hayvan üzerinden hesaplandı
-                </Text>
+                <Text style={styles.karAlt}>{satilanlar.length} hayvan üzerinden</Text>
               </View>
             </View>
 
+            {/* WhatsApp Rapor Butonu */}
+            <TouchableOpacity
+              style={[styles.whatsappButon, { backgroundColor: '#25D366' }]}
+              onPress={whatsappGonder}
+            >
+              <MaterialCommunityIcons name="whatsapp" size={22} color="#fff" />
+              <Text style={styles.whatsappYazi}>WhatsApp'a Rapor Gönder</Text>
+            </TouchableOpacity>
+
             {/* Satış Geçmişi */}
-            <Text style={[styles.bolumBaslik, { marginTop: 4 }]}>Satış Geçmişi</Text>
+            <Text style={[styles.bolumBaslik, { marginTop: 8 }]}>Satış Geçmişi</Text>
             {satilanlar.length === 0 ? (
               <BosDurum ikon="cash-remove" mesaj="Henüz satış yapılmamış" />
             ) : (
@@ -316,6 +400,15 @@ function AylikKart({ ikon, baslik, deger, birim, renk }) {
   );
 }
 
+function FinansSatir({ label, deger, renk }) {
+  return (
+    <View style={styles.finansSatir}>
+      <Text style={styles.finansLabel}>{label}</Text>
+      <Text style={[styles.finansDeger, { color: renk }]}>{deger}</Text>
+    </View>
+  );
+}
+
 function BosDurum({ ikon, mesaj }) {
   return (
     <View style={styles.bosDurum}>
@@ -336,13 +429,15 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   tab: {
-    flex: 1, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center',
-    paddingVertical: 11, gap: 4,
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', paddingVertical: 11, gap: 4,
   },
   tabYazi: { fontSize: 12, fontWeight: '700', color: COLORS.textLight },
 
-  bolumBaslik: { fontSize: 13, fontWeight: '800', color: COLORS.textSecondary, marginBottom: 10, letterSpacing: 0.3 },
+  bolumBaslik: {
+    fontSize: 13, fontWeight: '800', color: COLORS.textSecondary,
+    marginBottom: 10, letterSpacing: 0.3,
+  },
 
   hayvanCip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -358,21 +453,36 @@ const styles = StyleSheet.create({
     marginBottom: 12, overflow: 'hidden',
     borderWidth: 1, borderColor: COLORS.border,
   },
-  ozetSatir: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 10 },
+  ozetSatir: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
   ozetLabel: { fontSize: 13, color: COLORS.textSecondary },
   ozetDeger: { fontSize: 13, fontWeight: '800', color: COLORS.textPrimary },
 
   aylikGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   aylikKart: {
     backgroundColor: COLORS.surface, borderRadius: 14,
-    padding: 14, alignItems: 'center', width: '47%',
-    gap: 4,
+    padding: 14, alignItems: 'center', width: '47%', gap: 4,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05, shadowRadius: 3, elevation: 2,
   },
   aylikDeger: { fontSize: 24, fontWeight: '900' },
   aylikBaslik: { fontSize: 12, fontWeight: '600', color: COLORS.textPrimary },
   aylikBirim: { fontSize: 11, color: COLORS.textLight },
+
+  hayvanDurumKart: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.surface, borderRadius: 12,
+    padding: 12, marginBottom: 8, gap: 10,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04, shadowRadius: 3, elevation: 2,
+  },
+  hayvanDurumIkon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  hayvanDurumBilgi: { flex: 1 },
+  hayvanDurumIsim: { fontSize: 14, fontWeight: '700', color: COLORS.textPrimary },
+  hayvanDurumAlt: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
+  hayvanDurumFark: { fontSize: 16, fontWeight: '900' },
 
   tartimSatir: {
     flexDirection: 'row', alignItems: 'center',
@@ -388,21 +498,30 @@ const styles = StyleSheet.create({
 
   finansalKart: {
     backgroundColor: COLORS.surface, borderRadius: 16,
-    padding: 16, marginBottom: 16,
+    padding: 16, marginBottom: 12,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
   },
   finansalBaslik: { fontSize: 15, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 14 },
-  finansalSatir: {
+  finansSatir: {
     flexDirection: 'row', justifyContent: 'space-between',
     paddingVertical: 10, borderBottomWidth: 0.5, borderBottomColor: COLORS.divider,
   },
-  finansalLabel: { fontSize: 13, color: COLORS.textSecondary },
-  finansalDeger: { fontSize: 14, fontWeight: '800' },
+  finansLabel: { fontSize: 13, color: COLORS.textSecondary },
+  finansDeger: { fontSize: 14, fontWeight: '800' },
+
   karKutu: { borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 14, gap: 4 },
   karBaslik: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 1 },
-  karDeger: { fontSize: 30, fontWeight: '900' },
+  karDeger: { fontSize: 28, fontWeight: '900' },
   karAlt: { fontSize: 11, color: COLORS.textLight },
+
+  whatsappButon: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    borderRadius: 16, padding: 14, gap: 10, marginBottom: 16,
+    shadowColor: '#25D366', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
+  },
+  whatsappYazi: { fontSize: 15, fontWeight: '800', color: '#fff' },
 
   satisKart: {
     flexDirection: 'row', alignItems: 'center',
