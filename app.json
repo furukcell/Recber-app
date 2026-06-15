@@ -1,16 +1,10 @@
 {
   "expo": {
     "name": "Reçber",
-    "slug": "recber",
+    "slug": "besi",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#3D5A3E"
-    },
     "extra": {
       "eas": {
         "projectId": "164e6281-f928-42ed-b998-7b216a92a312"
@@ -19,10 +13,6 @@
     "android": {
       "package": "com.faruk.besidana",
       "versionCode": 1,
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#3D5A3E"
-      },
       "permissions": []
     },
     "plugins": [
