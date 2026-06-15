@@ -1,5 +1,5 @@
 // Reçber - TavsiyeKutu Component
-// Hesaplama bazlı sat/bekle tavsiyesi - AI yok, saf formül
+// Hesaplama bazlı sat/bekle tavsiyesi - ırk performansı dahil
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
@@ -7,115 +7,89 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
+import { satisTavsiyesi, irkaGorePerformansDegerlendir } from '../utils/hesaplama';
+import { HESAP_TIPLERI } from '../data/constants';
 
-export default function TavsiyeKutu({ hayvan, toplamYemMaliyet }) {
-  const [kgFiyat, setKgFiyat] = useState('');
+export default function TavsiyeKutu({
+  hayvan,
+  tartimlar,
+  yemAlimlar,
+  saglikKayitlar,
+  tumHayvanlar,
+  varsayilanAyarlar,
+}) {
+  const [hesapTipi, setHesapTipi] = useState(
+    varsayilanAyarlar?.hesapTipi || 'canli'
+  );
+  const [kgFiyat, setKgFiyat] = useState(
+    hesapTipi === 'canli'
+      ? varsayilanAyarlar?.canliKgFiyat?.toString() || ''
+      : varsayilanAyarlar?.karkasKgFiyat?.toString() || ''
+  );
+  const [randiman, setRandiman] = useState(
+    varsayilanAyarlar?.randimanOrani?.toString() || '0.55'
+  );
   const [sonuc, setSonuc] = useState(null);
   const [hesaplaniyor, setHesaplaniyor] = useState(false);
 
-  const hesapla = () => {
-    if (!kgFiyat || isNaN(parseFloat(kgFiyat))) return;
-
-    setHesaplaniyor(true);
-    setTimeout(() => {
-      const karar = tavsiyeHesapla();
-      setSonuc(karar);
-      setHesaplaniyor(false);
-    }, 600);
+  const hesapTipiDegistir = (tip) => {
+    setHesapTipi(tip);
+    setSonuc(null);
+    if (tip === 'canli') {
+      setKgFiyat(varsayilanAyarlar?.canliKgFiyat?.toString() || '');
+    } else {
+      setKgFiyat(varsayilanAyarlar?.karkasKgFiyat?.toString() || '');
+    }
   };
 
-  const tavsiyeHesapla = () => {
-    const gun = Math.floor((Date.now() - new Date(hayvan.olusturmaTarihi)) / 86400000) || 1;
-    const alisKilo = parseFloat(hayvan.alisKilo || 0);
-    const guncelKilo = parseFloat(hayvan.guncelKilo || 0);
-    const alisFiyat = parseFloat(hayvan.alisFiyat || 0);
-    const kgFiyatSayı = parseFloat(kgFiyat);
-    const yemMaliyet = parseFloat(toplamYemMaliyet || 0);
+  const hesapla = () => {
+    if (!kgFiyat || isNaN(parseFloat(kgFiyat))) return;
+    setHesaplaniyor(true);
+    setTimeout(() => {
+      const tavsiye = satisTavsiyesi(
+        hayvan,
+        tartimlar || [],
+        yemAlimlar || [],
+        saglikKayitlar || [],
+        tumHayvanlar || [hayvan],
+        kgFiyat,
+        hesapTipi,
+        parseFloat(randiman || 0.55)
+      );
+      setSonuc(tavsiye);
+      setHesaplaniyor(false);
+    }, 500);
+  };
 
-    const kgFark = guncelKilo - alisKilo;
-    const gcaa = gun > 0 ? kgFark / gun : 0;
-    const beklenenSatisFiyat = guncelKilo * kgFiyatSayı;
-    const toplamMaliyet = alisFiyat + yemMaliyet;
-    const karTL = beklenenSatisFiyat - toplamMaliyet;
-    const karYuzde = toplamMaliyet > 0 ? (karTL / toplamMaliyet) * 100 : 0;
+  const kararRenk = () => {
+    if (!sonuc) return COLORS.primary;
+    switch (sonuc.seviye) {
+      case 'olumlu': return COLORS.success;
+      case 'uyari': return COLORS.warning;
+      case 'risk': return COLORS.danger;
+      default: return COLORS.info;
+    }
+  };
 
-    // 30 günde beklenen ek kilo ve ek gelir
-    const beklenenEkKilo = gcaa * 30;
-    const beklenenEkGelir = beklenenEkKilo * kgFiyatSayı;
-    // 30 günde tahmini ek yem maliyeti (günlük ortalama * 30)
-    const gunlukYemMaliyet = gun > 0 ? yemMaliyet / gun : 0;
-    const ekYemMaliyet = gunlukYemMaliyet * 30;
-    const netEkKar = beklenenEkGelir - ekYemMaliyet;
+  const kararIkon = () => {
+    if (!sonuc) return 'calculator-variant';
+    switch (sonuc.karar) {
+      case 'SAT': return 'cash-fast';
+      case 'BEKLE': return 'clock-outline';
+      case 'TAKIP_ET': return 'eye-outline';
+      default: return 'help-circle-outline';
+    }
+  };
 
-    // ─── KARAR MANTIĞI ────────────────────────────────────────
-    let karar = 'BEKLE';
-    let renkKarar = COLORS.success;
-    let ikonKarar = 'clock-outline';
-    const gerekce = [];
-    const detaylar = [];
-
-    // 1. GCAA çok düşükse sat
-    if (gcaa < 1.0) {
-      karar = 'SAT';
-      renkKarar = COLORS.danger;
-      ikonKarar = 'cash-fast';
-      gerekce.push('Günlük kilo artışı 1 kg altında, verim çok düşük.');
-      gerekce.push('Yem maliyeti geliri geçiyor, beklemenin anlamı yok.');
+  // Performans özeti
+  const performans = irkaGorePerformansDegerlendir(hayvan, tartimlar || []);
+  const performansRenk = () => {
+    switch (performans.durum) {
+      case 'cok_iyi': return COLORS.success;
+      case 'normal': return COLORS.info;
+      case 'dusuk': return COLORS.danger;
+      default: return COLORS.textSecondary;
     }
-    // 2. Kar marjı %20 üstündeyse ve 90 günü geçtiyse sat
-    else if (karYuzde >= 20 && gun >= 90) {
-      karar = 'SAT';
-      renkKarar = COLORS.success;
-      ikonKarar = 'trending-up';
-      gerekce.push(`%${karYuzde.toFixed(0)} kar marjına ulaşıldı.`);
-      gerekce.push(`${gun} günlük besinin iyi bir getiri noktasındasın.`);
-    }
-    // 3. 120 günü geçtiyse ve GCAA düşmeye başladıysa sat
-    else if (gun >= 120 && gcaa < 1.3) {
-      karar = 'SAT';
-      renkKarar = COLORS.warning;
-      ikonKarar = 'alert-circle-outline';
-      gerekce.push(`${gun} günlük besi, verim yavaşlıyor.`);
-      gerekce.push('Uzun besi dönemlerinde kar marjı düşer.');
-    }
-    // 4. Zarar ediyorsa sat
-    else if (karTL < 0) {
-      karar = 'SAT';
-      renkKarar = COLORS.danger;
-      ikonKarar = 'trending-down';
-      gerekce.push('Mevcut fiyatta zarar ediyorsun.');
-      gerekce.push('Daha fazla yem maliyeti zararı büyütür.');
-    }
-    // 5. 30 gün daha beklemenin net karı pozitifse bekle
-    else if (netEkKar > 0 && gun < 120) {
-      karar = 'BEKLE';
-      renkKarar = COLORS.success;
-      ikonKarar = 'clock-outline';
-      gerekce.push(`30 gün daha beklersen tahminen ${beklenenEkKilo.toFixed(0)} kg daha alır.`);
-      gerekce.push(`Net ek kazanç: ~${Math.round(netEkKar).toLocaleString('tr-TR')} TL.`);
-    }
-    // 6. Henüz erken
-    else {
-      karar = 'BEKLE';
-      renkKarar = COLORS.info;
-      ikonKarar = 'clock-outline';
-      gerekce.push('Besi süreci henüz erken aşamada.');
-      gerekce.push('Kilo artışını izlemeye devam et.');
-    }
-
-    // Detay satırları
-    detaylar.push({ label: 'Besi Süresi', deger: `${gun} gün` });
-    detaylar.push({ label: 'GCAA', deger: `${gcaa.toFixed(2)} kg/gün` });
-    detaylar.push({ label: 'Beklenen Satış', deger: `${Math.round(beklenenSatisFiyat).toLocaleString('tr-TR')} TL` });
-    detaylar.push({ label: 'Toplam Maliyet', deger: `${Math.round(toplamMaliyet).toLocaleString('tr-TR')} TL` });
-    detaylar.push({
-      label: 'Tahmini Kar/Zarar',
-      deger: `${karTL >= 0 ? '+' : ''}${Math.round(karTL).toLocaleString('tr-TR')} TL`,
-      renk: karTL >= 0 ? COLORS.success : COLORS.danger,
-    });
-    detaylar.push({ label: 'Kar Marjı', deger: `%${karYuzde.toFixed(1)}`, renk: karYuzde >= 15 ? COLORS.success : COLORS.warning });
-
-    return { karar, renkKarar, ikonKarar, gerekce, detaylar };
   };
 
   return (
@@ -125,12 +99,30 @@ export default function TavsiyeKutu({ hayvan, toplamYemMaliyet }) {
         <Text style={styles.baslik}>Sat / Bekle Hesabı</Text>
       </View>
 
-      {/* Kg Fiyat Girişi */}
-      <Text style={styles.label}>Güncel Canlı Ağırlık Fiyatı (TL/kg)</Text>
+      {/* Hesap Tipi Seçimi */}
+      <Text style={styles.label}>Hesap Tipi</Text>
+      <View style={styles.tipSatir}>
+        {HESAP_TIPLERI.map(t => (
+          <TouchableOpacity
+            key={t.id}
+            style={[styles.tipButon, hesapTipi === t.id && { backgroundColor: COLORS.accent, borderColor: COLORS.accent }]}
+            onPress={() => hesapTipiDegistir(t.id)}
+          >
+            <Text style={[styles.tipYazi, hesapTipi === t.id && { color: COLORS.textOnAccent }]}>
+              {t.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Kg Fiyatı */}
+      <Text style={styles.label}>
+        {hesapTipi === 'canli' ? 'Canlı kg Fiyatı (TL)' : 'Karkas kg Fiyatı (TL)'}
+      </Text>
       <View style={styles.inputSatir}>
         <TextInput
           style={styles.input}
-          placeholder="Örn: 85"
+          placeholder={hesapTipi === 'canli' ? 'Örn: 300' : 'Örn: 600'}
           placeholderTextColor={COLORS.textLight}
           keyboardType="numeric"
           value={kgFiyat}
@@ -148,33 +140,66 @@ export default function TavsiyeKutu({ hayvan, toplamYemMaliyet }) {
         </TouchableOpacity>
       </View>
 
+      {/* Randıman (karkas seçiliyse) */}
+      {hesapTipi === 'karkas' && (
+        <View style={styles.randimanSatir}>
+          <Text style={styles.randimanLabel}>Randıman Oranı</Text>
+          <TextInput
+            style={styles.randimanInput}
+            placeholder="0.55"
+            keyboardType="decimal-pad"
+            value={randiman}
+            onChangeText={v => { setRandiman(v); setSonuc(null); }}
+          />
+          <Text style={styles.randimanAlt}>
+            Karkas: {(parseFloat(hayvan?.guncelKilo || 0) * parseFloat(randiman || 0.55)).toFixed(0)} kg
+          </Text>
+        </View>
+      )}
+
+      {/* Irk Performans Özeti */}
+      {performans.durum !== 'bilinmiyor' && (
+        <View style={[styles.performansOzet, { backgroundColor: performansRenk() + '10', borderColor: performansRenk() + '40' }]}>
+          <MaterialCommunityIcons name="chart-line" size={14} color={performansRenk()} />
+          <Text style={[styles.performansOzetYazi, { color: performansRenk() }]}>
+            Irk Performansı: {performans.baslik} — {performans.mevcutGcaa} kg/gün
+            {performans.beklenenMin ? ` (Beklenen: ${performans.beklenenMin}-${performans.beklenenMax})` : ''}
+          </Text>
+        </View>
+      )}
+
       {/* Sonuç */}
       {sonuc && (
         <View style={styles.sonucKap}>
-          {/* Karar Rozeti */}
-          <View style={[styles.kararKutu, { backgroundColor: sonuc.renkKarar + '15', borderColor: sonuc.renkKarar }]}>
-            <MaterialCommunityIcons name={sonuc.ikonKarar} size={32} color={sonuc.renkKarar} />
-            <Text style={[styles.kararYazi, { color: sonuc.renkKarar }]}>{sonuc.karar}</Text>
+          {/* Karar */}
+          <View style={[styles.kararKutu, { backgroundColor: kararRenk() + '15', borderColor: kararRenk() }]}>
+            <MaterialCommunityIcons name={kararIkon()} size={32} color={kararRenk()} />
+            <View style={styles.kararBilgi}>
+              <Text style={[styles.kararYazi, { color: kararRenk() }]}>{sonuc.karar}</Text>
+              <Text style={[styles.kararBaslik, { color: kararRenk() }]}>{sonuc.baslik}</Text>
+            </View>
           </View>
 
-          {/* Gerekçeler */}
-          <View style={styles.gerekceKap}>
-            {sonuc.gerekce.map((g, i) => (
-              <View key={i} style={styles.gerekce}>
-                <MaterialCommunityIcons name="chevron-right" size={14} color={sonuc.renkKarar} />
-                <Text style={styles.gerekceYazi}>{g}</Text>
-              </View>
-            ))}
+          {/* Gerekçe */}
+          <View style={styles.gerekceKutu}>
+            <MaterialCommunityIcons name="information-outline" size={15} color={COLORS.textSecondary} />
+            <Text style={styles.gerekceYazi}>{sonuc.gerekce}</Text>
           </View>
 
           {/* Detay Tablosu */}
           <View style={styles.detayTablo}>
-            {sonuc.detaylar.map((d, i) => (
-              <View key={i} style={[styles.detaySatir, i < sonuc.detaylar.length - 1 && { borderBottomWidth: 0.5, borderBottomColor: COLORS.divider }]}>
-                <Text style={styles.detayLabel}>{d.label}</Text>
-                <Text style={[styles.detayDeger, d.renk && { color: d.renk }]}>{d.deger}</Text>
-              </View>
-            ))}
+            <DetaySatir label="GCAA" deger={`${sonuc.detaylar.gcaa} kg/gün`} />
+            <DetaySatir
+              label="Tahmini Kar/Zarar"
+              deger={`${sonuc.detaylar.karZarar >= 0 ? '+' : ''}${Math.round(sonuc.detaylar.karZarar).toLocaleString('tr-TR')} TL`}
+              renk={sonuc.detaylar.karZarar >= 0 ? COLORS.success : COLORS.danger}
+            />
+            <DetaySatir
+              label="Irk Performansı"
+              deger={performans.baslik}
+              renk={performansRenk()}
+              son
+            />
           </View>
 
           {/* Yeniden Hesapla */}
@@ -187,20 +212,42 @@ export default function TavsiyeKutu({ hayvan, toplamYemMaliyet }) {
   );
 }
 
+// ─── ALT COMPONENTLER ─────────────────────────────────────────────
+
+function DetaySatir({ label, deger, renk, son }) {
+  return (
+    <View style={[styles.detaySatir, !son && { borderBottomWidth: 0.5, borderBottomColor: COLORS.divider }]}>
+      <Text style={styles.detayLabel}>{label}</Text>
+      <Text style={[styles.detayDeger, renk && { color: renk }]}>{deger}</Text>
+    </View>
+  );
+}
+
+// ─── STİLLER ──────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   kap: {
     backgroundColor: COLORS.surface,
-    borderRadius: 16, padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    borderRadius: 16, padding: 16, marginBottom: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
   },
   baslikSatir: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   baslik: { fontSize: 15, fontWeight: '800', color: COLORS.textPrimary },
 
-  label: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
-  inputSatir: { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  label: {
+    fontSize: 12, fontWeight: '600', color: COLORS.textSecondary,
+    marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+
+  tipSatir: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  tipButon: {
+    flex: 1, paddingVertical: 9, borderRadius: 12,
+    borderWidth: 1.5, borderColor: COLORS.border,
+    alignItems: 'center', backgroundColor: COLORS.background,
+  },
+  tipYazi: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
+
+  inputSatir: { flexDirection: 'row', gap: 10, marginBottom: 10 },
   input: {
     flex: 1, backgroundColor: COLORS.background,
     borderRadius: 12, padding: 13,
@@ -213,23 +260,46 @@ const styles = StyleSheet.create({
   },
   hesaplaYazi: { fontSize: 13, fontWeight: '800', color: COLORS.textOnAccent },
 
-  sonucKap: { marginTop: 16 },
+  randimanSatir: {
+    flexDirection: 'row', alignItems: 'center',
+    gap: 10, marginBottom: 12,
+    backgroundColor: COLORS.background, borderRadius: 12, padding: 10,
+  },
+  randimanLabel: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
+  randimanInput: {
+    width: 70, backgroundColor: COLORS.surface,
+    borderRadius: 8, padding: 8, borderWidth: 1,
+    borderColor: COLORS.border, fontSize: 14,
+    fontWeight: '700', textAlign: 'center', color: COLORS.textPrimary,
+  },
+  randimanAlt: { fontSize: 12, color: COLORS.textSecondary },
+
+  performansOzet: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderRadius: 10, padding: 10, marginBottom: 12, borderWidth: 1,
+  },
+  performansOzetYazi: { flex: 1, fontSize: 12, fontWeight: '600', lineHeight: 18 },
+
+  sonucKap: { marginTop: 12 },
   kararKutu: {
     flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'center', gap: 12,
-    borderRadius: 14, padding: 16,
-    borderWidth: 2, marginBottom: 14,
+    borderRadius: 14, padding: 16, borderWidth: 2,
+    marginBottom: 12, gap: 14,
   },
-  kararYazi: { fontSize: 30, fontWeight: '900', letterSpacing: 2 },
+  kararBilgi: { flex: 1 },
+  kararYazi: { fontSize: 26, fontWeight: '900', letterSpacing: 2 },
+  kararBaslik: { fontSize: 13, fontWeight: '700', marginTop: 2 },
 
-  gerekceKap: { marginBottom: 14, gap: 6 },
-  gerekce: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  gerekceYazi: { fontSize: 13, color: COLORS.textPrimary, flex: 1, lineHeight: 19 },
+  gerekceKutu: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: COLORS.background, borderRadius: 12,
+    padding: 12, marginBottom: 12,
+  },
+  gerekceYazi: { flex: 1, fontSize: 13, color: COLORS.textPrimary, lineHeight: 20 },
 
   detayTablo: {
-    backgroundColor: COLORS.background,
-    borderRadius: 12, overflow: 'hidden',
-    borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.background, borderRadius: 12,
+    overflow: 'hidden', borderWidth: 1, borderColor: COLORS.border,
     marginBottom: 12,
   },
   detaySatir: {
