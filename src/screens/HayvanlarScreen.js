@@ -10,24 +10,30 @@ import { useFocusEffect } from '@react-navigation/native';
 import HeaderBar from '../components/HeaderBar';
 import HayvanKart from '../components/HayvanKart';
 import COLORS from '../theme/colors';
-import { getHayvanlar, hayvanEkle, hayvanSil, getAktifModul } from '../data/storage';
+import { getHayvanlar, hayvanEkle, hayvanSil, getAktifModul, getProDurum } from '../data/storage';
+import { IRK_LISTESI, APP } from '../data/constants';
 
 const BOŞ_HAYVAN = {
-  isim: '', kupeNo: '', alisKilo: '',
-  alisFiyat: '', alisYeri: '', alisTarihi: '',
+  isim: '', kupeNo: '', alisKilo: '', alisFiyat: '',
+  alisYeri: '', alisTarihi: '', irk: '', cinsiyet: '',
+  dogumTarihi: '', hedefKilo: '', not: '',
 };
 
 export default function HayvanlarScreen({ navigation }) {
   const [hayvanlar, setHayvanlar] = useState([]);
   const [aktifModul, setModul] = useState('besi');
+  const [isPro, setIsPro] = useState(false);
   const [ekleModal, setEkleModal] = useState(false);
+  const [proModal, setProModal] = useState(false);
   const [form, setForm] = useState(BOŞ_HAYVAN);
-  const [filtre, setFiltre] = useState('aktif'); // aktif | satildi | hepsi
+  const [filtre, setFiltre] = useState('aktif');
   const [yenileniyor, setYenileniyor] = useState(false);
 
   const veriYukle = async () => {
     const modul = await getAktifModul();
-    setModul(modul);
+    setModul(modul || 'besi');
+    const pro = await getProDurum();
+    setIsPro(pro);
     const liste = await getHayvanlar();
     setHayvanlar(liste);
   };
@@ -46,7 +52,18 @@ export default function HayvanlarScreen({ navigation }) {
     return true;
   });
 
+  const aktifSayisi = hayvanlar.filter(h => !h.satildiMi).length;
   const modulRenk = aktifModul === 'besi' ? COLORS.besi : COLORS.suru;
+
+  // ─── HAYVAN EKLE ──────────────────────────────────────────────
+  const handleEkleBasin = () => {
+    // Ücretsiz limit kontrolü
+    if (!isPro && aktifSayisi >= APP.ucretsizLimit) {
+      setProModal(true);
+      return;
+    }
+    setEkleModal(true);
+  };
 
   const handleEkle = async () => {
     if (!form.isim || !form.alisKilo) {
@@ -70,8 +87,8 @@ export default function HayvanlarScreen({ navigation }) {
           onPress: async () => {
             await hayvanSil(hayvan.id);
             veriYukle();
-          }
-        }
+          },
+        },
       ]
     );
   };
@@ -80,11 +97,32 @@ export default function HayvanlarScreen({ navigation }) {
     <View style={styles.container}>
       <HeaderBar
         baslik={aktifModul === 'besi' ? 'Hayvanlar' : 'Sürü'}
-        altBaslik={`${filtrelenmis.length} hayvan`}
+        altBaslik={`${aktifSayisi} aktif hayvan`}
         modulRenk={modulRenk}
         sagIcon="plus-circle"
-        sagOnPress={() => setEkleModal(true)}
+        sagOnPress={handleEkleBasin}
       />
+
+      {/* Ücretsiz limit göstergesi */}
+      {!isPro && (
+        <View style={[styles.limitBant, { backgroundColor: aktifSayisi >= APP.ucretsizLimit ? COLORS.danger + '15' : modulRenk + '10' }]}>
+          <MaterialCommunityIcons
+            name={aktifSayisi >= APP.ucretsizLimit ? 'lock' : 'information-outline'}
+            size={15}
+            color={aktifSayisi >= APP.ucretsizLimit ? COLORS.danger : modulRenk}
+          />
+          <Text style={[styles.limitYazi, { color: aktifSayisi >= APP.ucretsizLimit ? COLORS.danger : COLORS.textSecondary }]}>
+            {aktifSayisi >= APP.ucretsizLimit
+              ? `Ücretsiz limit doldu (${APP.ucretsizLimit} hayvan). Pro'ya geç.`
+              : `Ücretsiz: ${aktifSayisi}/${APP.ucretsizLimit} hayvan`}
+          </Text>
+          {aktifSayisi >= APP.ucretsizLimit && (
+            <TouchableOpacity onPress={() => setProModal(true)}>
+              <Text style={[styles.proLink, { color: COLORS.accent }]}>Pro →</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {/* Filtre Sekmeler */}
       <View style={styles.filtreSatir}>
@@ -116,7 +154,7 @@ export default function HayvanlarScreen({ navigation }) {
             <Text style={styles.bosYazi}>Henüz hayvan yok</Text>
             <TouchableOpacity
               style={[styles.ekleButon, { backgroundColor: modulRenk }]}
-              onPress={() => setEkleModal(true)}
+              onPress={handleEkleBasin}
             >
               <Text style={styles.ekleButonYazi}>+ Hayvan Ekle</Text>
             </TouchableOpacity>
@@ -127,7 +165,7 @@ export default function HayvanlarScreen({ navigation }) {
               key={h.id}
               hayvan={h}
               modulRenk={modulRenk}
-              onPress={() => navigation.navigate('HayvanDetay', { hayvan: h })}
+              onPress={() => navigation.navigate('HayvanDetay', { hayvanId: h.id })}
             />
           ))
         )}
@@ -136,12 +174,12 @@ export default function HayvanlarScreen({ navigation }) {
       {/* FAB */}
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: modulRenk }]}
-        onPress={() => setEkleModal(true)}
+        onPress={handleEkleBasin}
       >
         <MaterialCommunityIcons name="plus" size={30} color="#fff" />
       </TouchableOpacity>
 
-      {/* Hayvan Ekle Modal */}
+      {/* ─── HAYVAN EKLE MODAL ─── */}
       <Modal visible={ekleModal} animationType="slide">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalUst}>
@@ -154,10 +192,49 @@ export default function HayvanlarScreen({ navigation }) {
           <ScrollView style={styles.modalScroll}>
             <FormInput label="İsim / Takma Ad *" placeholder="Örn: Paşa" value={form.isim} onChange={v => setForm({ ...form, isim: v })} />
             <FormInput label="Küpe No" placeholder="Örn: TR48-001" value={form.kupeNo} onChange={v => setForm({ ...form, kupeNo: v })} />
+
+            {/* Irk Seçimi */}
+            <Text style={styles.formLabel}>Irk</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {IRK_LISTESI.map(irk => (
+                <TouchableOpacity
+                  key={irk.id}
+                  style={[styles.irkButon, form.irk === irk.id && { backgroundColor: modulRenk, borderColor: modulRenk }]}
+                  onPress={() => setForm({ ...form, irk: irk.id })}
+                >
+                  <Text style={[styles.irkButonYazi, form.irk === irk.id && { color: '#fff' }]}>
+                    {irk.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Cinsiyet */}
+            <Text style={styles.formLabel}>Cinsiyet</Text>
+            <View style={styles.cinsiyetSatir}>
+              {[
+                { id: 'erkek', label: '♂ Erkek' },
+                { id: 'disi', label: '♀ Dişi' },
+              ].map(c => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.cinsiyetButon, form.cinsiyet === c.id && { backgroundColor: modulRenk, borderColor: modulRenk }]}
+                  onPress={() => setForm({ ...form, cinsiyet: c.id })}
+                >
+                  <Text style={[styles.cinsiyetYazi, form.cinsiyet === c.id && { color: '#fff' }]}>
+                    {c.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <FormInput label="Doğum Tarihi" placeholder="Örn: 15.03.2024" value={form.dogumTarihi} onChange={v => setForm({ ...form, dogumTarihi: v })} />
             <FormInput label="Alış Kilo (kg) *" placeholder="Örn: 250" value={form.alisKilo} onChange={v => setForm({ ...form, alisKilo: v })} klavye="numeric" />
+            <FormInput label="Hedef Kilo (kg)" placeholder="Örn: 550" value={form.hedefKilo} onChange={v => setForm({ ...form, hedefKilo: v })} klavye="numeric" />
             <FormInput label="Alış Fiyatı (TL)" placeholder="Örn: 75000" value={form.alisFiyat} onChange={v => setForm({ ...form, alisFiyat: v })} klavye="numeric" />
             <FormInput label="Alındığı Yer" placeholder="Örn: Milas Hayvan Pazarı" value={form.alisYeri} onChange={v => setForm({ ...form, alisYeri: v })} />
             <FormInput label="Alış Tarihi" placeholder="Örn: 01.03.2026" value={form.alisTarihi} onChange={v => setForm({ ...form, alisTarihi: v })} />
+            <FormInput label="Not" placeholder="Opsiyonel not" value={form.not} onChange={v => setForm({ ...form, not: v })} />
 
             <TouchableOpacity
               style={[styles.kaydetButon, { backgroundColor: modulRenk }]}
@@ -168,9 +245,45 @@ export default function HayvanlarScreen({ navigation }) {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {/* ─── PRO MODAL ─── */}
+      <Modal visible={proModal} animationType="slide" transparent>
+        <View style={styles.proModalArkaPlan}>
+          <View style={styles.proModalKutu}>
+            <Text style={styles.proModalIkon}>⭐</Text>
+            <Text style={styles.proModalBaslik}>Reçber Pro</Text>
+            <Text style={styles.proModalAlt}>Sınırsız hayvan takibi</Text>
+
+            <Text style={styles.proModalMetin}>
+              Besi Pro ile sınırsız hayvan takip edin.{'\n\n'}
+              Hayvan başı kilo artışı, yem maliyeti, veteriner gideri ve tahmini kâr/zarar hesabını görün.
+              Satış zamanınızı daha bilinçli planlayın.{'\n\n'}
+              Sadece 1 kg karkas farkı bile uygulama ücretini karşılayabilir.
+            </Text>
+
+            <View style={[styles.proFiyatKutu, { backgroundColor: COLORS.accent + '20' }]}>
+              <Text style={styles.proFiyat}>{APP.proFiyat} TL</Text>
+              <Text style={styles.proFiyatAlt}>Tek Seferlik</Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.proButon, { backgroundColor: COLORS.textLight }]}
+              onPress={() => Alert.alert('Yakında', 'Satın alma özelliği yakında aktif olacak.')}
+            >
+              <Text style={styles.proButonYazi}>Satın alma yakında</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.proKapat} onPress={() => setProModal(false)}>
+              <Text style={styles.proKapatYazi}>Kapat</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
+
+// ─── ALT COMPONENTLER ─────────────────────────────────────────────
 
 function FormInput({ label, placeholder, value, onChange, klavye }) {
   return (
@@ -188,32 +301,32 @@ function FormInput({ label, placeholder, value, onChange, klavye }) {
   );
 }
 
+// ─── STİLLER ──────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   scroll: { flex: 1 },
   scrollIcerik: { padding: 12, paddingBottom: 90 },
 
+  limitBant: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  limitYazi: { flex: 1, fontSize: 12, fontWeight: '600' },
+  proLink: { fontSize: 13, fontWeight: '800' },
+
   filtreSatir: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.surface,
-    padding: 8,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    flexDirection: 'row', backgroundColor: COLORS.surface,
+    padding: 8, gap: 8,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
   },
   filtreButon: {
-    flex: 1, paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: COLORS.background,
-    alignItems: 'center',
+    flex: 1, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: COLORS.background, alignItems: 'center',
   },
   filtreYazi: { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
 
-  bosDurum: {
-    flex: 1, alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 80, gap: 12,
-  },
+  bosDurum: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
   bosYazi: { fontSize: 15, color: COLORS.textLight },
   ekleButon: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20 },
   ekleButonYazi: { fontSize: 14, fontWeight: '700', color: '#fff' },
@@ -222,11 +335,8 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 24, right: 20,
     width: 60, height: 60, borderRadius: 30,
     justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2, shadowRadius: 8, elevation: 6,
   },
 
   modalContainer: { flex: 1, backgroundColor: COLORS.surface },
@@ -239,17 +349,59 @@ const styles = StyleSheet.create({
   modalScroll: { padding: 16 },
 
   formGrup: { marginBottom: 14 },
-  formLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  formLabel: {
+    fontSize: 12, fontWeight: '600', color: COLORS.textSecondary,
+    marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5,
+  },
   formInput: {
-    backgroundColor: COLORS.background,
-    borderRadius: 12, padding: 14,
-    fontSize: 15, color: COLORS.textPrimary,
+    backgroundColor: COLORS.background, borderRadius: 12,
+    padding: 14, fontSize: 15, color: COLORS.textPrimary,
     borderWidth: 1, borderColor: COLORS.border,
   },
 
-  kaydetButon: {
-    borderRadius: 16, padding: 16,
-    alignItems: 'center', marginTop: 10, marginBottom: 30,
+  irkButon: {
+    paddingHorizontal: 14, paddingVertical: 9,
+    borderRadius: 20, borderWidth: 1.5,
+    borderColor: COLORS.border, marginRight: 8,
+    backgroundColor: COLORS.background,
   },
+  irkButonYazi: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary },
+
+  cinsiyetSatir: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  cinsiyetButon: {
+    flex: 1, paddingVertical: 10, borderRadius: 12,
+    borderWidth: 1.5, borderColor: COLORS.border,
+    alignItems: 'center', backgroundColor: COLORS.background,
+  },
+  cinsiyetYazi: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary },
+
+  kaydetButon: { borderRadius: 16, padding: 16, alignItems: 'center', marginTop: 10, marginBottom: 30 },
   kaydetYazi: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+
+  // Pro Modal
+  proModalArkaPlan: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  proModalKutu: {
+    backgroundColor: COLORS.surface, borderTopLeftRadius: 28,
+    borderTopRightRadius: 28, padding: 28, alignItems: 'center',
+  },
+  proModalIkon: { fontSize: 48, marginBottom: 8 },
+  proModalBaslik: { fontSize: 26, fontWeight: '900', color: COLORS.textPrimary },
+  proModalAlt: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4, marginBottom: 16 },
+  proModalMetin: {
+    fontSize: 14, color: COLORS.textSecondary, textAlign: 'center',
+    lineHeight: 22, marginBottom: 20,
+  },
+  proFiyatKutu: { borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 16, width: '100%' },
+  proFiyat: { fontSize: 32, fontWeight: '900', color: COLORS.accent },
+  proFiyatAlt: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2 },
+  proButon: {
+    width: '100%', borderRadius: 16, padding: 16,
+    alignItems: 'center', marginBottom: 12,
+  },
+  proButonYazi: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  proKapat: { paddingVertical: 8 },
+  proKapatYazi: { fontSize: 14, color: COLORS.textLight },
 });
