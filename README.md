@@ -1,17 +1,19 @@
-# 🐄 Reçber — Besi & Süt Çiftliği Yönetim Uygulaması
+# 🐄 Reçber — Besi, Süt & Kümes Yönetim Uygulaması
 
-Reçber, besi ve süt çiftçileri için geliştirilmiş tamamen çevrimdışı çalışan bir React Native mobil uygulamasıdır. İnternet bağlantısı gerekmez, tüm veriler telefon hafızasında saklanır.
+Reçber; küçük ve orta ölçekli üreticiler için geliştirilmiş, **tamamen çevrimdışı çalışan** bir React Native mobil uygulamasıdır. Besi hayvanı, süt ineği ve kümes takibini tek uygulamada toplar. İnternet bağlantısı gerekmez; tüm veriler telefon hafızasında saklanır.
 
 ---
 
 ## 🎯 Uygulama Ne Yapar?
 
-### Giriş Ekranı
-Uygulama ilk açıldığında iki modül arasında seçim yapılır:
+### Giriş / Modül Seçimi
+Uygulama ilk açıldığında üretici kendi ihtiyacına göre modül seçer:
+
 - **🐄 Besi** — Dana ve boğa besi takibi
 - **🥛 Sürü** — Süt ineği ve laktasyon takibi
+- **🐔 Kümes** — Tavuk, yumurta, yem, satış ve kayıp takibi
 
-Seçim kaydedilir, bir sonraki açılışta direkt ilgili modüle girer. Ayarlardan istediğin zaman değiştirilebilir.
+Seçim kaydedilir, bir sonraki açılışta doğrudan ilgili modüle girer. Ayarlardan istenildiği zaman modül değiştirilebilir.
 
 ---
 
@@ -58,7 +60,7 @@ Değerlendirme sonucunda:
 > ⚠️ Bu değerler pratik referans amaçlıdır, veterinerlik hükmü değildir.
 
 ### Sat / Bekle Karar Motoru
-Kullanıcı güncel piyasa fiyatını girince uygulama şu kararı verir:
+Kullanıcı güncel piyasa fiyatını girince uygulama karar üretir.
 
 **Hesap tipleri:**
 - **Canlı kg fiyatı** → `satışGeliri = mevcutKilo × canlıKgFiyatı`
@@ -124,6 +126,98 @@ Her inek için dönem atanabilir:
 
 ---
 
+## 🐔 Kümes Modülü — Ne Yapar?
+
+Kümes modülü; yumurta tavuğu, etlik tavuk veya karışık küçük kümes işletmeleri için günlük üretim, yem, satış ve kayıp takibini yapar.
+
+### Genel Özet
+Kümes ana ekranında üretici şu metrikleri görür:
+- Toplam tavuk sayısı
+- Aktif grup sayısı
+- Bugünkü yumurta adedi
+- Bu ay toplanan yumurta
+- Bu ay kırık yumurta
+- Bu ay kayıp / ölüm
+- Net kar / zarar
+
+### Grup Yönetimi
+Her kümes grubu için şu bilgiler tutulur:
+- Grup adı (Örn: Arka Kümes, Kümes-1)
+- Kümes tipi (Yumurta, etlik vb.)
+- Irk / hat seçimi
+- Başlangıç tavuk sayısı
+- Mevcut tavuk sayısı
+- Alış fiyatı
+- Alış tarihi
+- Not alanı
+
+Gruplar uzun basma ile düzenlenebilir, arşivlenebilir, tekrar aktif edilebilir veya silinebilir.
+
+### Yumurta Takibi
+Her grup için ayrı yumurta kaydı tutulur:
+- Tarih
+- Yumurta adedi
+- Kırık yumurta adedi
+- Not
+
+Uygulama grup bazlı yumurta geçmişini gösterir ve genel özet ekranına günlük / aylık yumurta verilerini yansıtır.
+
+### Yem Alımı Takibi
+Kümes yemleri için alım kaydı tutulur:
+- Yem tipi
+- Miktar (kg)
+- Toplam fiyat
+- Tarih
+- Not
+
+Uygulama otomatik olarak **kg başına yem maliyetini** hesaplar ve yem tiplerine göre toplam kg / toplam TL özetini gösterir.
+
+### Satış Takibi
+Kümes modülünde iki satış tipi desteklenir:
+- **Yumurta satışı**
+- **Tavuk satışı**
+
+Satış kaydında:
+- Adet
+- Birim fiyat
+- Toplam tutar
+- Tarih
+- Alıcı
+- Not
+
+tutulur. Adet ve birim fiyat girildiğinde toplam tutar otomatik hesaplanır; kullanıcı isterse manuel de değiştirebilir.
+
+### Kayıp / Ölüm Takibi
+Kayıp kayıtlarında:
+- Grup seçimi
+- Kayıp adet
+- Sebep
+- Tarih
+- Not
+
+tutulur. Böylece üretici hangi grupta ne kadar kayıp olduğunu görebilir.
+
+### Finansal Özet
+Kümes modülü gelir ve giderleri tek ekranda toplar:
+- Yumurta satış geliri
+- Tavuk satış geliri
+- Yem maliyeti
+- Alış maliyeti
+- Net kar / zarar
+
+### Hızlı İşlemler
+Özet ekranından tek dokunuşla:
+- Yumurta gir
+- Satış ekle
+- Yem alımı ekle
+- Kayıp kaydet
+
+işlemleri yapılabilir.
+
+> Kümes modülü de Besi ve Sürü gibi çevrimdışı çalışır. Kayıtlar cihaz hafızasında tutulur.
+
+---
+
 ## 📊 Raporlar — Ne Yapar?
 
 ### Sat/Bekle Sekmesi
@@ -168,7 +262,7 @@ Rapor ekranında bu değerler otomatik yüklenir.
 **Yedek Al:**
 Tüm uygulama verileri tek bir JSON dosyasına yazılır. Dosya WhatsApp, Google Drive, e-posta vb. ile paylaşılabilir veya telefona kaydedilebilir.
 
-Yedek dosyası adı: `recber-yedek-2026-06-15.json`
+Yedek dosyası adı örneği: `recber-yedek-2026-06-15.json`
 
 **Yedekten Geri Yükle:**
 Daha önce alınan JSON yedek dosyası seçilir, tüm veriler geri yüklenir.
@@ -177,7 +271,7 @@ Daha önce alınan JSON yedek dosyası seçilir, tüm veriler geri yüklenir.
 Onay sonrası tüm Reçber verileri silinir. Geri alınamaz.
 
 ### Modül Değiştirme
-Besi ve Sürü modülü arasında buradan geçiş yapılır.
+Besi, Sürü ve Kümes modülleri arasında buradan geçiş yapılır.
 
 ---
 
@@ -185,14 +279,17 @@ Besi ve Sürü modülü arasında buradan geçiş yapılır.
 
 | Özellik | Ücretsiz | Pro |
 |---------|----------|-----|
-| Hayvan sayısı | 2 baş | Sınırsız |
-| Tüm diğer özellikler | ✅ | ✅ |
+| Besi hayvan sayısı | 2 baş | Sınırsız |
+| Sürü / süt ineği kaydı | Sınırlı / test amaçlı | Sınırsız |
+| Kümes grubu ve kayıtları | Sınırlı / test amaçlı | Sınırsız |
+| Yedek al / geri yükle | ✅ | ✅ |
+| Tüm hesaplama özellikleri | ✅ | ✅ |
 
-3. hayvan eklenmeye çalışılınca Pro ekranı açılır.
+3. hayvan veya ücretsiz sınır üstü kayıt eklenmeye çalışılınca Pro ekranı açılır.
 
 **Pro fiyatı: 499 TL (tek seferlik)**
 
-> Satın alma özelliği yakında aktif olacak.
+> Satın alma özelliği teknik borç olarak planlandı. RevenueCat + Google Play Billing entegrasyonu tamamlandıktan sonra aktif edilecek.
 
 ---
 
@@ -207,12 +304,17 @@ Uygulama **AsyncStorage** kullanır. Tüm veriler cihaz hafızasında saklanır.
 | `@recber_yemler` | Yem alımları |
 | `@recber_asilar` | Aşı takvimi |
 | `@recber_saglik` | Sağlık sorunları |
-| `@recber_satislar` | Satış kayıtları |
+| `@recber_satislar` | Besi satış kayıtları |
 | `@recber_suru` | Sürü hayvanları |
 | `@recber_sut` | Süt kayıtları |
 | `@recber_modul` | Aktif modül |
 | `@recber_ayarlar` | Fiyat ayarları |
 | `@recber_pro` | Pro durumu |
+| `@recber_kumes_gruplar` | Kümes grupları |
+| `@recber_kumes_yumurta` | Yumurta kayıtları |
+| `@recber_kumes_yem` | Kümes yem alımları |
+| `@recber_kumes_satis` | Kümes satış kayıtları |
+| `@recber_kumes_kayip` | Kümes kayıp / ölüm kayıtları |
 
 > **Önemli:** Uygulama silinirse veriler de silinir. Düzenli yedek almanız önerilir.
 
@@ -220,7 +322,7 @@ Uygulama **AsyncStorage** kullanır. Tüm veriler cihaz hafızasında saklanır.
 
 ## 🗂️ Dosya Yapısı
 
-```
+```text
 Recber-app/
 ├── App.js                          # Navigation + modül seçim ekranı
 ├── app.json                        # Expo uygulama ayarları
@@ -236,7 +338,8 @@ Recber-app/
     │   ├── VeterinerScreen.js      # Aşı + sağlık sorunları
     │   ├── RaporScreen.js          # Sat/bekle + aylık + genel + WhatsApp
     │   ├── AyarlarScreen.js        # Ayarlar + yedek + fiyatlar
-    │   └── SuruScreen.js           # Süt ineği modülü
+    │   ├── SuruScreen.js           # Süt ineği modülü
+    │   └── KumesScreen.js          # Kümes, yumurta, yem, satış ve kayıp takibi
     │
     ├── components/
     │   ├── HeaderBar.js            # Üst bar
@@ -246,7 +349,7 @@ Recber-app/
     │
     ├── data/
     │   ├── storage.js              # AsyncStorage CRUD + JSON yedekleme
-    │   └── constants.js            # Sabitler + ırk performans tablosu
+    │   └── constants.js            # Sabitler + ırk, yem, kümes listeleri
     │
     ├── utils/
     │   └── hesaplama.js            # Tüm hesaplama fonksiyonları
@@ -279,6 +382,8 @@ Recber-app/
 }
 ```
 
+> RevenueCat / Google Billing eklendiğinde bağımlılıklar bu listeye ayrıca işlenecek.
+
 ---
 
 ## 🎨 Tema
@@ -287,6 +392,7 @@ Recber-app/
 |------|-----|----------|
 | Orman Yeşili | `#3D5A3E` | Besi modülü ana renk |
 | Koyu Mavi | `#1A5276` | Sürü modülü ana renk |
+| Kümes Kahvesi | `#A0522D` | Kümes modülü ana renk |
 | Buğday Altını | `#C9A84C` | Aksan, vurgu, Pro |
 | Krem | `#F5F0E8` | Arka plan |
 | Beyaz | `#FFFFFF` | Kartlar |
@@ -299,12 +405,15 @@ Recber-app/
 - Target SDK: 34+ (Expo SDK 53 ile karşılanıyor)
 - Minimum SDK: 24
 - Package name: `com.recber.app`
+- Pro ödeme için Google Play Console ürün tanımı hazırlanmalı
+- Kapalı test süreci tamamlandıktan sonra üretim yayınına geçilmeli
 
 ### Codemagic ile Build
 1. Codemagic → Recber-app reposunu seç
 2. Build type: Android APK (test) veya AAB (Play Store)
 3. Keystore ayarlarını gir
 4. Build al
+5. Kapalı test için AAB dosyasını Google Play Console'a yükle
 
 ---
 
@@ -312,6 +421,7 @@ Recber-app/
 
 - [x] Besi modülü
 - [x] Sürü / süt ineği modülü
+- [x] Kümes modülü
 - [x] Yem stok takibi
 - [x] Veteriner modülü
 - [x] Irka göre GCAA performans değerlendirmesi
@@ -321,8 +431,47 @@ Recber-app/
 - [x] 2 hayvan ücretsiz + Pro placeholder
 - [x] Fiyat ayarları (kalıcı)
 - [ ] Pro satın alma entegrasyonu
-- [ ] Bildirim sistemi (tartım hatırlatıcı)
+- [ ] Google Play kapalı test
+- [ ] Bildirim sistemi (tartım, aşı, süt, yumurta hatırlatıcı)
 - [ ] Play Store yayını
+
+---
+
+## 🧱 Teknik Borçlar / Yapılacaklar
+
+### Ödeme ve Pro Entegrasyonu
+- [ ] RevenueCat hesabı açılacak ve proje oluşturulacak
+- [ ] Google Play Console içinde tek seferlik Pro ürün tanımlanacak
+- [ ] RevenueCat ürün eşleştirmesi yapılacak
+- [ ] Android Billing / Google Play Billing bağlantısı test edilecek
+- [ ] `@recber_pro` durumu gerçek satın alma sonucu ile senkronize edilecek
+- [ ] Satın alma başarılı olunca Pro kilidi açılacak
+- [ ] Satın alımı geri yükle butonu eklenecek
+- [ ] Satın alma başarısız / iptal / internet yok durumları kullanıcıya net gösterilecek
+
+### Google Play Kapalı Test
+- [ ] Internal test veya closed testing kanalı oluşturulacak
+- [ ] Test kullanıcı listesi hazırlanacak
+- [ ] İlk AAB kapalı teste yüklenecek
+- [ ] Besi, Sürü ve Kümes modülleri gerçek cihazlarda test edilecek
+- [ ] Pro ekranı, ödeme placeholder ve ücretsiz limit akışları test edilecek
+- [ ] Yedek al / geri yükle akışı test edilecek
+- [ ] Kritik crash yoksa üretim başvurusu yapılacak
+
+### Veri ve Güvenlik
+- [ ] Yedek dosyasında uygulama sürüm bilgisi tutulacak
+- [ ] Eski yedeklerden geri yükleme için migration kontrolü eklenecek
+- [ ] AsyncStorage veri bozulmalarına karşı try/catch ve kullanıcı uyarısı güçlendirilecek
+- [ ] Silme işlemlerinde yanlışlık riskine karşı ikinci onay / geri al mantığı değerlendirilecek
+
+### Ürün Tavsiyeleri
+- [ ] Ana ekrana “Bugün yapılacaklar” kartı eklenebilir: tartım, aşı, yumurta girişi, süt girişi
+- [ ] Kümes için yumurta verim oranı eklenebilir: `günlük yumurta / mevcut tavuk`
+- [ ] Kümes için tavuk başı yem maliyeti eklenebilir
+- [ ] Sürü için doğum yaklaşan inek uyarısı eklenebilir
+- [ ] Besi için son tartımdan kaç gün geçti uyarısı eklenebilir
+- [ ] Tüm modüller için WhatsApp'a kısa günlük rapor paylaşımı eklenebilir
+- [ ] Pro ekranında “tek seferlik ödeme, bulut yok, veri telefonda” mesajı net anlatılmalı
 
 ---
 
@@ -330,6 +479,7 @@ Recber-app/
 
 Build öncesi şu akış test edilmeli:
 
+### Besi Testi
 1. Uygulama açılır → Besi seçilir
 2. Hayvan eklenir (ırk, doğum tarihi, hedef kilo dahil)
 3. Tartım girilir
@@ -337,12 +487,35 @@ Build öncesi şu akış test edilmeli:
 5. Sağlık/aşı kaydı girilir
 6. Hayvan detayında performans sekmesi kontrol edilir
 7. Rapor → Sat/Bekle → kg fiyatı girilir → karar alınır
-8. Uygulama kapatılıp açılır → veriler duruyor
-9. Ayarlar → Yedek Al → dosya paylaşılır
-10. Tüm Verileri Sil
-11. Ayarlar → Yedekten Geri Yükle → veriler geri gelir
+
+### Sürü Testi
+1. Sürü modülü seçilir
+2. İnek kaydı eklenir
+3. Laktasyon / kuru dönem bilgisi kontrol edilir
+4. Sabah ve akşam süt kaydı girilir
+5. Özet ve mini grafik kontrol edilir
+
+### Kümes Testi
+1. Kümes modülü seçilir
+2. Yeni kümes grubu eklenir
+3. Yumurta kaydı girilir
+4. Kırık yumurta adedi girilir
+5. Yem alımı eklenir ve kg fiyatı kontrol edilir
+6. Yumurta satışı eklenir
+7. Tavuk satışı eklenir
+8. Kayıp / ölüm kaydı girilir
+9. Özet ekranında toplam tavuk, yumurta, yem maliyeti ve net kar/zarar kontrol edilir
+10. Grup uzun basma ile düzenle / arşivle / sil akışları kontrol edilir
+
+### Genel Test
+1. Uygulama kapatılıp açılır → veriler duruyor
+2. Ayarlar → Yedek Al → dosya paylaşılır
+3. Tüm Verileri Sil
+4. Ayarlar → Yedekten Geri Yükle → veriler geri gelir
+5. Ücretsiz limit aşılınca Pro ekranı açılır
+6. İnternet yokken uygulama ana özellikleri çalışmaya devam eder
 
 ---
 
-*Reçber v1.0.0 — Besi & Süt Çiftliği Yönetim Uygulaması*
+*Reçber v1.1.0 — Besi, Süt & Kümes Yönetim Uygulaması*  
 *Tamamen çevrimdışı • AsyncStorage • Expo SDK 53*
