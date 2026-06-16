@@ -13,6 +13,8 @@ import TYPOGRAPHY from '../theme/typography';
 import { getGenel, getHayvanlar, getStokDurum, getSaglikKayitlar, getAktifModul, setAktifModul } from '../data/storage';
 import { GCAA_SINIRLAR, GCAA_RENKLER } from '../data/constants';
 
+const KUMES_RENK = '#A0522D';
+
 export default function HomeScreen({ navigation }) {
   const [aktifModul, setModul] = useState('besi');
   const [ozet, setOzet] = useState({ toplamHayvan: 0, hastaHayvanSayisi: 0, toplamYemMaliyet: 0, satilan: 0 });
@@ -85,6 +87,22 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.modulDegistir}>Değiştir →</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Kümes Modülü Girişi */}
+        <TouchableOpacity
+          style={styles.kumesGirisKart}
+          onPress={() => navigation.navigate('Kumes')}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.kumesIkonKutu, { backgroundColor: KUMES_RENK }]}>
+            <MaterialCommunityIcons name="bird" size={26} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.kumesGirisBaslik}>🐔 Kümes</Text>
+            <Text style={styles.kumesGirisAlt}>Tavuk, yumurta ve yem takibi</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={26} color={COLORS.textLight} />
+        </TouchableOpacity>
 
         {/* Özet Kartlar */}
         <View style={styles.ozetGrid}>
@@ -254,6 +272,25 @@ const styles = StyleSheet.create({
   modulRozetYazi: { fontSize: 12, fontWeight: '700', color: '#fff', flex: 1, letterSpacing: 1 },
   modulDegistir: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
 
+  kumesGirisKart: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    marginHorizontal: 12,
+    marginTop: 12,
+    padding: 14,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  kumesIkonKutu: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  kumesGirisBaslik: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
+  kumesGirisAlt: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+
   ozetGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -338,4 +375,3 @@ const styles = StyleSheet.create({
   bosButon: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, marginTop: 4 },
   bosButonYazi: { fontSize: 13, fontWeight: '700', color: '#fff' },
 });
-                    
