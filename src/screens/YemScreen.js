@@ -10,7 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import HeaderBar from '../components/HeaderBar';
 import StokBar from '../components/StokBar';
 import COLORS from '../theme/colors';
-import { getYemAlimlar, yemAlimEkle, getStokDurum, getAktifModul } from '../data/storage';
+import { getYemAlimlar, yemAlimEkle, yemAlimSil, getStokDurum, getAktifModul } from '../data/storage';
 import { YEM_TIPLERI } from '../data/constants';
 
 const BOŞ_FORM = { tip: 'arpa', miktar: '', fiyat: '', tarih: bugunTarih(), not: '' };
@@ -188,6 +188,28 @@ export default function YemScreen() {
                         {(parseFloat(a.fiyat) / parseFloat(a.miktar)).toFixed(1)} ₺/kg
                       </Text>
                     </View>
+                        <TouchableOpacity
+                          onPress={() => {
+                          Alert.alert(
+                         'Kaydı Sil',
+                        'Bu yem alım kaydı silinecek. Emin misiniz?',
+                   [
+                        { text: 'İptal', style: 'cancel' },
+                   {
+                         text: 'Sil',
+                         style: 'destructive',
+                         onPress: async () => {
+                   await yemAlimSil(a.id);
+               veriYukle();
+          },
+        },
+      ]
+    );
+  }}
+  style={{ padding: 6 }}
+>
+  <MaterialCommunityIcons name="trash-can-outline" size={20} color={COLORS.danger} />
+</TouchableOpacity>
                   </View>
                 );
               })
