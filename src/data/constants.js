@@ -201,11 +201,20 @@ export const STORAGE_KEYS = {
   asiTakvimi:       '@recber_asilar',
   saglikKayitlar:   '@recber_saglik',
   satislar:         '@recber_satislar',
+
+  // Sürü / Süt
   suruHayvanlar:    '@recber_suru',
   sutKayitlari:     '@recber_sut',
+
+  // Ortak Ambar / Yem Stok
+  ambarYemleri:     '@recber_ambar_yemleri',
+  yemKullanimlari:  '@recber_yem_kullanimlari',
+
+  // Genel
   aktifModul:       '@recber_modul',
   ayarlar:          '@recber_ayarlar',
   pro:              '@recber_pro',
+
   // Kümes
   kumesGruplar:     '@recber_kumes_gruplar',
   kumesYumurta:     '@recber_kumes_yumurta',
