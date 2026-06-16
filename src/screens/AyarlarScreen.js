@@ -28,7 +28,7 @@ const MODUL_BILGI = {
   kumes: { label: 'Kümes', emoji: '🐔', renk: KUMES_RENK,  altYazi: 'Kümes — Tavuk & Yumurta Takibi', rozetYazi: 'KÜMES' },
 };
 
-export default function AyarlarScreen(props) {
+export default function AyarlarScreen({ navigation, onModulDegis }) {
   const [aktifModul, setModul] = useState('besi');
   const [isPro, setIsPro] = useState(false);
   const [ayarlar, setAyarlar] = useState({ ...VARSAYILAN_FIYATLAR });
@@ -57,7 +57,7 @@ export default function AyarlarScreen(props) {
       onPress: async () => {
         await setAktifModul(m);
         setModul(m);
-        if (props.onModulDegis) props.onModulDegis(m);
+        if (onModulDegis) onModulDegis(m);
       },
     }));
     butonlar.push({ text: 'İptal', style: 'cancel' });
@@ -292,12 +292,7 @@ export default function AyarlarScreen(props) {
             baslik="Uygulama Hakkında"
             alt={`Reçber v${APP.versiyon} — Besi, Sürü & Kümes Yönetimi`}
             renk={modulRenk}
-            onPress={() =>
-              Alert.alert(
-                'Reçber',
-                `Versiyon ${APP.versiyon}\n\nBesi, Süt & Kümes Çiftliği Yönetim Uygulaması\n\nTüm veriler cihazınızda saklanır.\nİnternet bağlantısı gerekmez.`
-              )
-            }
+            onPress={() => navigation.navigate('Hakkimizda')}
           />
         </AyarGrubu>
 
