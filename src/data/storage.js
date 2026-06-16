@@ -129,7 +129,12 @@ export const yemAlimEkle = async (alim) => {
   await saveYemAlimlar(liste);
   return yeni;
 };
-
+export const yemAlimSil = async (id) => {
+  const liste = await getYemAlimlar();
+  const yeni = liste.filter((a) => a.id !== id);
+  await saveYemAlimlar(yeni);
+  return yeni;
+};
 export const getStokDurum = async () => {
   const alimlar = await getYemAlimlar();
   const kayitlar = await getHaftalikKayitlar();
