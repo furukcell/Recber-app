@@ -308,6 +308,174 @@ export const setAktifModul = async (modul) => {
   }
 };
 
+// ─── AMBAR / ORTAK YEM STOKLARI ──────────────────────────────────
+// Besi, Süt ve Kümes yemleri ortak ambarda tutulur.
+// Ambar ücretsizdir; Pro sınırına bağlı değildir.
+
+export const getAmbarYemleri = () => getItem(STORAGE_KEYS.ambarYemleri);
+
+export const saveAmbarYemleri = (liste) =>
+  setItem(STORAGE_KEYS.ambarYemleri, liste);
+
+export const ambarYemEkle = async (yem) => {
+  const liste = await getAmbarYemleri();
+
+  const miktarKg = parseFloat(yem.miktarKg || 0);
+  const toplamTutar = parseFloat(yem.toplamTutar || 0);
+  const kgMaliyet = miktarKg > 0 ? toplamTutar / miktarKg : 0;
+
+  const yeni = {
+    ...yem,
+    id: generateId(),
+    miktarKg,
+    kalanKg: miktarKg,
+    toplamTutar,
+    kgMaliyet,
+    olusturmaTarihi: new Date().toISOString(),
+    aktifMi: true,
+  };
+
+  liste.unshift(yeni);
+  await saveAmbarYemleri(liste);
+  return yeni;
+};
+
+export const ambarYemGuncelle = async (id, guncellemeler) => {
+  const liste = await getAmbarYemleri();
+
+  const yeni = liste.map((yem) => {
+    if (yem.id !== id) return yem;
+
+    const guncel = {
+      ...yem,
+      ...guncellemeler,
+    };
+
+    const miktarKg = parseFloat(guncel.miktarKg || 0);
+    const toplamTutar = parseFloat(guncel.toplamTutar || 0);
+
+    return {
+      ...guncel,
+      miktarKg,
+      toplamTutar,
+      kgMaliyet: miktarKg > 0 ? toplamTutar / miktarKg : 0,
+      guncellemeTarihi: new Date().toISOString(),
+    };
+  });
+
+  await saveAmbarYemleri(yeni);
+  return yeni;
+};
+
+export const ambarYemSil = async (id) => {
+  const liste = await getAmbarYemleri();
+  const yeni = liste.filter((yem) => yem.id !== id);
+  await saveAmbarYemleri(yeni);
+  return yeni;
+};
+
+// ─── YEM KULLANIM KAYITLARI ──────────────────────────────────────
+// modul: 'besi' | 'sut' | 'kumes'
+// hedefId: hayvanId / inekId / grupId
+// hedefAd: hayvan adı / inek adı / grup adı
+
+export const getYemKullanimlari = () =>
+  getItem(STORAGE_KEYS.yemKullanimlari);
+
+export const saveYemKullanimlari = (liste) =>
+  setItem(STORAGE_KEYS.yemKullanimlari, liste);
+
+export const ambarYemKullan = async (kullanim) => {
+  const yemler = await getAmbarYemleri();
+  const kayitlar = await getYemKullanimlari();
+
+  const yem = yemler.find((y) => y.id === kullanim.yemId);
+
+  if (!yem) {
+    throw new Error('Yem bulunamadı');
+  }
+
+  const miktarKg = parseFloat(kullanim.miktarKg || 0);
+  const kalanKg = parseFloat(yem.kalanKg || 0);
+
+  if (miktarKg <= 0) {
+    throw new Error('Kullanılan yem miktarı geçersiz');
+  }
+
+  if (miktarKg > kalanKg) {
+    throw new Error('Ambarda yeterli yem yok');
+  }
+
+  const kgMaliyet = parseFloat(yem.kgMaliyet || 0);
+  const toplamMaliyet = miktarKg * kgMaliyet;
+
+  const yeniKullanim = {
+    ...kullanim,
+    id: generateId(),
+    yemAdi: yem.ad,
+    yemKategori: yem.kategori,
+    miktarKg,
+    kgMaliyet,
+    toplamMaliyet,
+    tarih: kullanim.tarih || new Date().toISOString(),
+    olusturmaTarihi: new Date().toISOString(),
+  };
+
+  const guncelYemler = yemler.map((y) => {
+    if (y.id !== kullanim.yemId) return y;
+
+    return {
+      ...y,
+      kalanKg: Math.max(parseFloat(y.kalanKg || 0) - miktarKg, 0),
+      guncellemeTarihi: new Date().toISOString(),
+    };
+  });
+
+  kayitlar.unshift(yeniKullanim);
+
+  await saveAmbarYemleri(guncelYemler);
+  await saveYemKullanimlari(kayitlar);
+
+  return yeniKullanim;
+};
+
+export const yemKullanimSil = async (id) => {
+  const kayitlar = await getYemKullanimlari();
+  const silinecek = kayitlar.find((k) => k.id === id);
+
+  if (!silinecek) return kayitlar;
+
+  const yemler = await getAmbarYemleri();
+
+  const guncelYemler = yemler.map((yem) => {
+    if (yem.id !== silinecek.yemId) return yem;
+
+    return {
+      ...yem,
+      kalanKg:
+        parseFloat(yem.kalanKg || 0) + parseFloat(silinecek.miktarKg || 0),
+      guncellemeTarihi: new Date().toISOString(),
+    };
+  });
+
+  const yeniKayitlar = kayitlar.filter((k) => k.id !== id);
+
+  await saveAmbarYemleri(guncelYemler);
+  await saveYemKullanimlari(yeniKayitlar);
+
+  return yeniKayitlar;
+};
+
+export const modulYemKullanimlari = async (modul, hedefId = null) => {
+  const kayitlar = await getYemKullanimlari();
+
+  return kayitlar.filter((k) => {
+    if (k.modul !== modul) return false;
+    if (hedefId && k.hedefId !== hedefId) return false;
+    return true;
+  });
+};
+
 // ─── AYARLAR ──────────────────────────────────────────────────────
 
 export const getAyarlar = async () => {
