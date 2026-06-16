@@ -258,8 +258,12 @@ export default function App() {
           </Stack.Screen>
 
           <Stack.Screen
-            name="Hakkimizda"
-            component={HakkimizdaScreen}
+           name="Hakkimizda"
+           component={HakkimizdaScreen}
+          />
+           <Stack.Screen
+             name="Kvkk"
+             component={KvkkEkrani}
           />
         </>
       )}
