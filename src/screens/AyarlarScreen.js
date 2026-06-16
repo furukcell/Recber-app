@@ -20,7 +20,7 @@ import {
 } from '../data/storage';
 import { APP, STORAGE_KEYS, VARSAYILAN_FIYATLAR } from '../data/constants';
 
-export default function AyarlarScreen() {
+export default function AyarlarScreen(props) {
   const [aktifModul, setModul] = useState('besi');
   const [isPro, setIsPro] = useState(false);
   const [ayarlar, setAyarlar] = useState({ ...VARSAYILAN_FIYATLAR });
@@ -41,22 +41,23 @@ export default function AyarlarScreen() {
 
   // ─── MODÜL DEĞİŞTİR ───────────────────────────────────────────
   const handleModulDegistir = () => {
-    Alert.alert(
-      'Modül Değiştir',
-      'Hangi modüle geçmek istiyorsunuz?',
-      [
-        {
-          text: aktifModul === 'besi' ? '🥛 Sürü Modülüne Geç' : '🐄 Besi Modülüne Geç',
-          onPress: async () => {
-            const yeni = aktifModul === 'besi' ? 'suru' : 'besi';
-            await setAktifModul(yeni);
-            setModul(yeni);
-          },
+  Alert.alert(
+    'Modül Değiştir',
+    'Hangi modüle geçmek istiyorsunuz?',
+    [
+      {
+        text: aktifModul === 'besi' ? '🥛 Sürü Modülüne Geç' : '🐄 Besi Modülüne Geç',
+        onPress: async () => {
+          const yeni = aktifModul === 'besi' ? 'suru' : 'besi';
+          await setAktifModul(yeni);
+          setModul(yeni);
+          if (props.onModulDegis) props.onModulDegis(yeni);
         },
-        { text: 'İptal', style: 'cancel' },
-      ]
-    );
-  };
+      },
+      { text: 'İptal', style: 'cancel' },
+    ]
+  );
+};
 
   // ─── AYAR KAYDET ──────────────────────────────────────────────
   const handleAyarKaydet = async (yeniAyarlar) => {
