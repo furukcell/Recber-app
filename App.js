@@ -18,6 +18,7 @@ import SuruScreen from './src/screens/SuruScreen';
 import KumesScreen from './src/screens/KumesScreen';
 import HakkimizdaScreen from './src/screens/HakkimizdaScreen';
 import KvkkEkrani from './src/screens/KvkkEkrani';
+import SuruRaporScreen from './src/screens/SuruRaporScreen';
 
 // Theme
 import COLORS from './src/theme/colors';
@@ -47,10 +48,11 @@ function MainTabs({ aktifModul, onModulDegis }) {
     aktifModul === 'suru' ? COLORS.suru :
     KUMES_RENK;
 
-  const ikonlar = {
+ const ikonlar = {
   'Ana Sayfa': 'view-dashboard-outline',
   'Hayvanlar': 'cow',
   'Sürü': 'cow',
+  'Süt Rapor': 'chart-bar',
   'Yem': 'barley',
   'Veteriner': 'medical-bag',
   'Rapor': 'chart-line',
@@ -101,17 +103,19 @@ function MainTabs({ aktifModul, onModulDegis }) {
   </>
 ) : aktifModul === 'suru' ? (
   <>
-    <Tab.Screen name="Sürü" component={SuruScreen} />
+   <Tab.Screen name="Sürü" component={SuruScreen} />
 
-    <Tab.Screen
-      name="Ayarlar"
-      children={(props) => (
-        <AyarlarScreen
-          {...props}
-          onModulDegis={onModulDegis}
+     <Tab.Screen name="Süt Rapor" component={SuruRaporScreen} />
+
+     <Tab.Screen
+     name="Ayarlar"
+     children={(props) => (
+     <AyarlarScreen
+      {...props}
+      onModulDegis={onModulDegis}
         />
       )}
-    />
+     />
   </>
 ) : (
   <>
