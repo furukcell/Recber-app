@@ -16,7 +16,7 @@ import {
   getKumesYemAlimlar, kumesYemAlimEkle, kumesYemAlimSil,
   getKumesSatislar, kumesSatisEkle, kumesSatisSil,
   getKumesKayiplar, kumesKayipEkle, kumesKayipSil,
-  getKumesGenel, getProDurum,
+  getKumesGenel, getProDurum, getAmbarStokOzeti,
 } from '../data/storage';
 import { KUMES_TIPLERI, KUMES_IRK_LISTESI, KUMES_YEM_TIPLERI, APP } from '../data/constants';
 
@@ -45,6 +45,12 @@ export default function KumesScreen() {
   const [satislar, setSatislar] = useState([]);
   const [kayiplar, setKayiplar] = useState([]);
   const [isPro, setIsPro] = useState(false);
+
+  const [ambarStok, setAmbarStok] = useState({
+  yemler: [],
+  toplamKg: 0,
+  toplamDeger: 0,
+});
 
   const [aktifTab, setAktifTab] = useState('ozet');
   const [yenileniyor, setYenileniyor] = useState(false);
@@ -80,6 +86,8 @@ export default function KumesScreen() {
     setYemAlimlar(y);
     const s = await getKumesSatislar();
     setSatislar(s);
+    const stok = await getAmbarStokOzeti('kumes');
+    setAmbarStok(stok);
     const k = await getKumesKayiplar();
     setKayiplar(k);
   };
@@ -304,6 +312,39 @@ const handleGrupEkle = async () => {
               <MetrikKart baslik="Bu Ay Kayıp" deger={genel.buAyKayip} birim="tavuk" renk={genel.buAyKayip > 0 ? COLORS.danger : COLORS.success} ikon="alert-circle-outline" />
               <MetrikKart baslik="Net Kar/Zarar" deger={`${Math.round(genel.netKarZarar / 1000)}K`} birim="TL" renk={genel.netKarZarar >= 0 ? COLORS.success : COLORS.danger} ikon="cash" />
             </View>
+           {/* Ambar Stok Özeti */}
+      <View style={styles.ambarKart}>
+       <View style={styles.ambarUst}>
+         <View style={styles.ambarIkon}>
+          <MaterialCommunityIcons name="barn" size={22} color={KUMES_RENK} />
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text style={styles.ambarBaslik}>Kümes Yemi Stoku</Text>
+         <Text style={styles.ambarAlt}>
+          Ambar'daki kümes ve genel yem stokları
+        </Text>
+      </View>
+    </View>
+
+  <View style={styles.ambarMetrikSatir}>
+    <View style={styles.ambarMetrik}>
+      <Text style={styles.ambarMetrikBaslik}>Kalan Yem</Text>
+      <Text style={styles.ambarMetrikDeger}>
+        {Number(ambarStok.toplamKg || 0).toLocaleString('tr-TR')} kg
+      </Text>
+    </View>
+
+    <View style={styles.ambarMetrik}>
+      <Text style={styles.ambarMetrikBaslik}>Stok Değeri</Text>
+      <Text style={styles.ambarMetrikDeger}>
+        {Number(ambarStok.toplamDeger || 0).toLocaleString('tr-TR', {
+          maximumFractionDigits: 2,
+            })} TL
+          </Text>
+        </View>
+      </View>
+   </View>
 
             {/* Finansal özet */}
             <View style={styles.finansKart}>
@@ -1152,5 +1193,59 @@ const styles = StyleSheet.create({
   },
 
   kaydetButon: { borderRadius: 16, padding: 16, alignItems: 'center', marginTop: 10, marginBottom: 30 },
-  kaydetYazi: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+kaydetYazi: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+
+ambarKart: {
+  backgroundColor: COLORS.surface,
+  borderRadius: 18,
+  padding: 14,
+  marginTop: 12,
+  marginBottom: 14,
+  borderWidth: 1,
+  borderColor: COLORS.border,
+},
+ambarUst: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+},
+ambarIkon: {
+  width: 42,
+  height: 42,
+  borderRadius: 14,
+  backgroundColor: '#FFF3E0',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+ambarBaslik: {
+  fontSize: 16,
+  fontWeight: '800',
+  color: COLORS.textPrimary,
+},
+ambarAlt: {
+  marginTop: 3,
+  fontSize: 12,
+  color: COLORS.textSecondary,
+},
+ambarMetrikSatir: {
+  flexDirection: 'row',
+  gap: 10,
+  marginTop: 14,
+},
+ambarMetrik: {
+  flex: 1,
+  backgroundColor: COLORS.background,
+  borderRadius: 12,
+  padding: 10,
+},
+ambarMetrikBaslik: {
+  fontSize: 12,
+  color: COLORS.textSecondary,
+},
+ambarMetrikDeger: {
+  marginTop: 4,
+  fontSize: 15,
+  fontWeight: '900',
+  color: COLORS.textPrimary,
+},
 });
