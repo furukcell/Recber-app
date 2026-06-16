@@ -26,6 +26,8 @@ import { getAktifModul, setAktifModul } from './src/data/storage';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+const KUMES_RENK = '#A0522D';
+
 // ─── HAYVANLAR STACK ──────────────────────────────────────────────
 function HayvanlarStack() {
   return (
@@ -38,7 +40,20 @@ function HayvanlarStack() {
 
 // ─── BOTTOM TAB NAVIGATOR ─────────────────────────────────────────
 function MainTabs({ aktifModul, onModulDegis }) {
-  const modulRenk = aktifModul === 'besi' ? COLORS.besi : COLORS.suru;
+  const modulRenk =
+    aktifModul === 'besi' ? COLORS.besi :
+    aktifModul === 'suru' ? COLORS.suru :
+    KUMES_RENK;
+
+  const ikonlar = {
+    'Ana Sayfa': 'view-dashboard-outline',
+    'Hayvanlar':  'cow',
+    'Yem':        'barley',
+    'Veteriner':  'medical-bag',
+    'Rapor':      'chart-line',
+    'Ayarlar':    'cog-outline',
+    'Kümes':      'bird',
+  };
 
   return (
     <Tab.Navigator
@@ -58,59 +73,47 @@ function MainTabs({ aktifModul, onModulDegis }) {
           fontSize: 11,
           fontWeight: '600',
         },
-        tabBarIcon: ({ color, size }) => {
-          const ikonlar = {
-            'Ana Sayfa': 'view-dashboard-outline',
-            'Hayvanlar':  'cow',
-            'Yem':        'barley',
-            'Veteriner':  'medical-bag',
-            'Rapor':      'chart-line',
-            'Ayarlar':    'cog-outline',
-          };
-          return (
-            <MaterialCommunityIcons
-              name={ikonlar[route.name] || 'circle'}
-              size={24}
-              color={color}
-            />
-          );
-        },
+        tabBarIcon: ({ color, size }) => (
+          <MaterialCommunityIcons
+            name={ikonlar[route.name] || 'circle'}
+            size={24}
+            color={color}
+          />
+        ),
       })}
     >
-      <Tab.Screen
-        name="Ana Sayfa"
-        component={HomeScreen}
-        initialParams={{ aktifModul }}
-      />
-      <Tab.Screen
-        name="Hayvanlar"
-        component={HayvanlarStack}
-        options={{
-          tabBarLabel: aktifModul === 'besi' ? 'Hayvanlar' : 'Sürü',
-        }}
-      />
-      <Tab.Screen name="Yem" component={YemScreen} />
-      <Tab.Screen name="Veteriner" component={VeterinerScreen} />
-      <Tab.Screen name="Rapor" component={RaporScreen} />
-      <Tab.Screen
-        name="Ayarlar"
-        children={() => (
-          <AyarlarScreen onModulDegis={onModulDegis} />
-        )}
-      />
+      {aktifModul === 'kumes' ? (
+        <>
+          <Tab.Screen name="Kümes" component={KumesScreen} />
+          <Tab.Screen
+            name="Ayarlar"
+            children={() => <AyarlarScreen onModulDegis={onModulDegis} />}
+          />
+        </>
+      ) : (
+        <>
+          <Tab.Screen
+            name="Ana Sayfa"
+            component={HomeScreen}
+            initialParams={{ aktifModul }}
+          />
+          <Tab.Screen
+            name="Hayvanlar"
+            component={HayvanlarStack}
+            options={{
+              tabBarLabel: aktifModul === 'besi' ? 'Hayvanlar' : 'Sürü',
+            }}
+          />
+          <Tab.Screen name="Yem" component={YemScreen} />
+          <Tab.Screen name="Veteriner" component={VeterinerScreen} />
+          <Tab.Screen name="Rapor" component={RaporScreen} />
+          <Tab.Screen
+            name="Ayarlar"
+            children={() => <AyarlarScreen onModulDegis={onModulDegis} />}
+          />
+        </>
+      )}
     </Tab.Navigator>
-  );
-}
-
-// ─── ROOT STACK (Tabs + Kümes) ────────────────────────────────────
-function RootNavigator({ aktifModul, onModulDegis }) {
-  return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainTabs">
-        {() => <MainTabs aktifModul={aktifModul} onModulDegis={onModulDegis} />}
-      </Stack.Screen>
-      <Stack.Screen name="Kumes" component={KumesScreen} />
-    </Stack.Navigator>
   );
 }
 
@@ -165,6 +168,25 @@ function ModulSecimEkrani({ onSecim }) {
         <MaterialCommunityIcons name="chevron-right" size={28} color={COLORS.suru} />
       </TouchableOpacity>
 
+      {/* Kümes Kartı */}
+      <TouchableOpacity
+        style={[styles.modulKart, { borderColor: KUMES_RENK }]}
+        onPress={() => onSecim('kumes')}
+        activeOpacity={0.85}
+      >
+        <View style={[styles.modulIkon, { backgroundColor: KUMES_RENK }]}>
+          <MaterialCommunityIcons name="bird" size={36} color="#fff" />
+        </View>
+        <View style={styles.modulBilgi}>
+          <Text style={[styles.modulKartBaslik, { color: KUMES_RENK }]}>Kümes</Text>
+          <Text style={styles.modulKartAlt}>Tavuk & Yumurta Takibi</Text>
+          <Text style={styles.modulKartDetay}>
+            Yumurta verimi • Yem stoku • Satış geliri
+          </Text>
+        </View>
+        <MaterialCommunityIcons name="chevron-right" size={28} color={KUMES_RENK} />
+      </TouchableOpacity>
+
       <Text style={styles.modulNot}>
         İstediğiniz zaman ayarlardan modül değiştirebilirsiniz.
       </Text>
@@ -208,7 +230,7 @@ export default function App() {
       {!aktifModul ? (
         <ModulSecimEkrani onSecim={handleModulSecim} />
       ) : (
-        <RootNavigator aktifModul={aktifModul} onModulDegis={handleModulSecim} />
+        <MainTabs aktifModul={aktifModul} onModulDegis={handleModulSecim} />
       )}
     </NavigationContainer>
   );
@@ -243,14 +265,14 @@ const styles = StyleSheet.create({
   },
   modulUst: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   modulLogo: {
-    fontSize: 72,
+    fontSize: 64,
     marginBottom: 10,
   },
   modulBaslik: {
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '900',
     color: COLORS.primary,
     letterSpacing: 2,
@@ -265,13 +287,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
   },
   modulKart: {
     backgroundColor: COLORS.surface,
     borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
+    padding: 18,
+    marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 2,
@@ -282,9 +304,9 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   modulIkon: {
-    width: 68,
-    height: 68,
-    borderRadius: 18,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -293,7 +315,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modulKartBaslik: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     marginBottom: 2,
   },
@@ -311,6 +333,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: COLORS.textLight,
     textAlign: 'center',
-    marginTop: 24,
+    marginTop: 20,
   },
 });
