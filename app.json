@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./icon.png", 
     "extra": {
       "eas": {
         "projectId": "164e6281-f928-42ed-b998-7b216a92a312"
