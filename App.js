@@ -17,6 +17,7 @@ import AyarlarScreen from './src/screens/AyarlarScreen';
 import SuruScreen from './src/screens/SuruScreen';
 import KumesScreen from './src/screens/KumesScreen';
 import HakkimizdaScreen from './src/screens/HakkimizdaScreen';
+import KvkkEkrani from './src/screens/KvkkEkrani';
 
 // Theme
 import COLORS from './src/theme/colors';
