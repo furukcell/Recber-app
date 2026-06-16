@@ -3,7 +3,6 @@ android-release:
 name: Recber Android Build
 max_build_duration: 60
 
-```
 environment:
   groups:
     - recber
@@ -70,4 +69,3 @@ publishing:
   email:
     recipients:
       - kurtulusfaruk94@gmail.com
-```
