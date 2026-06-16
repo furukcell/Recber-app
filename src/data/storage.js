@@ -139,18 +139,28 @@ export const getStokDurum = async () => {
   const alimlar = await getYemAlimlar();
   const kayitlar = await getHaftalikKayitlar();
   const tipler = ['arpa', 'saman', 'silaj', 'besiYemi', 'yonca', 'misir'];
+
   return tipler.map((tip) => {
-    const toplamAlinan = alimlar
-      .filter((a) => a.tip === tip)
-      .reduce((acc, curr) => acc + parseFloat(curr.miktar || 0), 0);
-    const toplamVerilen = kayitlar.reduce(
-      (acc, curr) => acc + parseFloat(curr[tip] || 0),
-      0
+    const tipAlimlar = alimlar.filter((a) => a.tip === tip);
+
+    const toplamAlinan = tipAlimlar.reduce(
+      (acc, curr) => acc + parseFloat(curr.miktar || 0), 0
     );
-    const kalan = toplamAlinan - toplamVerilen;
-    const yuzde =
-      toplamAlinan > 0 ? Math.round((kalan / toplamAlinan) * 100) : 0;
-    return { tip, toplamAlinan, toplamVerilen, kalan, yuzde };
+    const toplamHarcama = tipAlimlar.reduce(
+      (acc, curr) => acc + parseFloat(curr.fiyat || 0), 0
+    );
+    const kgBasinaMaliyet =
+      toplamAlinan > 0 ? (toplamHarcama / toplamAlinan).toFixed(2) : null;
+
+    const toplamVerilen = kayitlar.reduce(
+      (acc, curr) => acc + parseFloat(curr[tip] || 0), 0
+    );
+
+    const kalan = Math.max(toplamAlinan - toplamVerilen, 0);
+    const yuzde = toplamAlinan > 0 ? Math.round((kalan / toplamAlinan) * 100) : 0;
+    const kayitsizKullanim = toplamAlinan === 0 && toplamVerilen > 0;
+
+    return { tip, toplamAlinan, toplamVerilen, kalan, yuzde, kgBasinaMaliyet, kayitsizKullanim };
   });
 };
 
