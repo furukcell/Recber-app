@@ -283,10 +283,11 @@ export default function AyarlarScreen({ navigation, onModulDegis }) {
         <AyarGrubu baslik="HAKKINDA">
           <AyarSatir
             ikon="shield-check-outline"
-            baslik="Gizlilik"
-            alt="Verileriniz yalnızca cihazınızda saklanır"
+            baslik="Gizlilik / KVKK"
+            alt="KVKK Aydınlatma Metni ve veri güvenliği"
             renk={COLORS.success}
-          />
+            onPress={() => navigation.navigate('Kvkk')}
+         />
           <AyarSatir
             ikon="information-outline"
             baslik="Uygulama Hakkında"
