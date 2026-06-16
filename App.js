@@ -19,6 +19,7 @@ import KumesScreen from './src/screens/KumesScreen';
 import HakkimizdaScreen from './src/screens/HakkimizdaScreen';
 import KvkkEkrani from './src/screens/KvkkEkrani';
 import SuruRaporScreen from './src/screens/SuruRaporScreen';
+import AmbarScreen from './src/screens/AmbarScreen';
 
 // Theme
 import COLORS from './src/theme/colors';
@@ -50,17 +51,17 @@ function MainTabs({ aktifModul, onModulDegis }) {
       ? COLORS.suru
       : KUMES_RENK;
 
-  const ikonlar = {
-    'Ana Sayfa': 'home',
-    Hayvanlar: 'cow',
-    Yem: 'food-apple',
-    Veteriner: 'medical-bag',
-    Rapor: 'chart-line',
-    Ayarlar: 'cog-outline',
-    Kümes: 'bird',
-    Sürü: 'cow',
-    'Süt Rapor': 'chart-bar',
-  };
+ const ikonlar = {
+  'Ana Sayfa': 'home',
+  Hayvanlar: 'cow',
+  Yem: 'food-apple',
+  Veteriner: 'medical-bag',
+  Rapor: 'chart-line',
+  Ayarlar: 'cog-outline',
+  Kümes: 'bird',
+  Sürü: 'cow',
+  'Süt Rapor': 'chart-bar',
+};
 
   return (
     <Tab.Navigator
@@ -85,7 +86,7 @@ function MainTabs({ aktifModul, onModulDegis }) {
       {aktifModul === 'kumes' ? (
         <>
           <Tab.Screen name="Kümes" component={KumesScreen} />
-
+   
           <Tab.Screen
             name="Ayarlar"
             children={(props) => (
@@ -280,6 +281,10 @@ export default function App() {
              name="Kvkk"
              component={KvkkEkrani}
           />
+               <Stack.Screen
+               name="Ambar"
+               component={AmbarScreen}
+            />
         </>
       )}
     </Stack.Navigator>
