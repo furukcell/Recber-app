@@ -91,7 +91,12 @@ function MainTabs({ aktifModul }) {
       <Tab.Screen name="Yem" component={YemScreen} />
       <Tab.Screen name="Veteriner" component={VeterinerScreen} />
       <Tab.Screen name="Rapor" component={RaporScreen} />
-      <Tab.Screen name="Ayarlar" component={AyarlarScreen} />
+      <Tab.Screen
+       name="Ayarlar"
+       children={() => (
+       <AyarlarScreen onModulDegis={handleModulSecim} />
+     )}
+   />
     </Tab.Navigator>
   );
 }
