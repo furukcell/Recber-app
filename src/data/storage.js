@@ -423,3 +423,272 @@ export const tumVerileriSil = async () => {
     return false;
   }
 };
+// ───────────────────────────────────────────────────
+// KÜMES FONKSİYONLARI
+// ───────────────────────────────────────────────────
+// Grup = "50 yumurta tavuğu, Lohmann Brown" gibi bir sürü
+
+export const getKumesGruplar = () => getItem(STORAGE_KEYS.kumesGruplar);
+export const saveKumesGruplar = (liste) => setItem(STORAGE_KEYS.kumesGruplar, liste);
+
+export const kumesGrupEkle = async (grup) => {
+  const liste = await getKumesGruplar();
+  const yeni = {
+    ...grup,
+    id: generateId(),
+    olusturmaTarihi: new Date().toISOString(),
+    aktifMi: true,
+  };
+  liste.unshift(yeni);
+  await saveKumesGruplar(liste);
+  return yeni;
+};
+
+export const kumesGrupGuncelle = async (id, guncellemeler) => {
+  const liste = await getKumesGruplar();
+  const yeni = liste.map((g) => (g.id === id ? { ...g, ...guncellemeler } : g));
+  await saveKumesGruplar(yeni);
+  return yeni;
+};
+
+export const kumesGrupSil = async (id) => {
+  const liste = await getKumesGruplar();
+  const yeni = liste.filter((g) => g.id !== id);
+  await saveKumesGruplar(yeni);
+  return yeni;
+};
+
+// ─── YUMURTA KAYITLARI ────────────────────────────────────────────
+// Her gün için: { grupId, tarih, adet, kirik, not }
+
+export const getYumurtaKayitlari = () => getItem(STORAGE_KEYS.kumesYumurta);
+export const saveYumurtaKayitlari = (liste) => setItem(STORAGE_KEYS.kumesYumurta, liste);
+
+export const yumurtaKayitEkle = async (kayit) => {
+  const liste = await getYumurtaKayitlari();
+  // Aynı grup + aynı tarih varsa güncelle, yoksa ekle
+  const mevcutIdx = liste.findIndex(
+    (k) => k.grupId === kayit.grupId && k.tarih === kayit.tarih
+  );
+  if (mevcutIdx >= 0) {
+    liste[mevcutIdx] = {
+      ...liste[mevcutIdx],
+      ...kayit,
+      guncellemeTarihi: new Date().toISOString(),
+    };
+  } else {
+    liste.unshift({
+      ...kayit,
+      id: generateId(),
+      olusturmaTarihi: new Date().toISOString(),
+    });
+  }
+  await saveYumurtaKayitlari(liste);
+};
+
+export const grupYumurtaKayitlari = async (grupId) => {
+  const liste = await getYumurtaKayitlari();
+  return liste
+    .filter((k) => k.grupId === grupId)
+    .sort((a, b) => b.tarih.localeCompare(a.tarih));
+};
+
+export const yumurtaKayitSil = async (id) => {
+  const liste = await getYumurtaKayitlari();
+  const yeni = liste.filter((k) => k.id !== id);
+  await saveYumurtaKayitlari(yeni);
+};
+
+// ─── KÜMES YEM ALIMLARI ───────────────────────────────────────────
+
+export const getKumesYemAlimlar = () => getItem(STORAGE_KEYS.kumesYemAlim);
+export const saveKumesYemAlimlar = (liste) => setItem(STORAGE_KEYS.kumesYemAlim, liste);
+
+export const kumesYemAlimEkle = async (alim) => {
+  const liste = await getKumesYemAlimlar();
+  const yeni = {
+    ...alim,
+    id: generateId(),
+    olusturmaTarihi: new Date().toISOString(),
+  };
+  liste.unshift(yeni);
+  await saveKumesYemAlimlar(liste);
+  return yeni;
+};
+
+export const kumesYemAlimSil = async (id) => {
+  const liste = await getKumesYemAlimlar();
+  const yeni = liste.filter((a) => a.id !== id);
+  await saveKumesYemAlimlar(yeni);
+};
+
+// ─── KÜMES SATIŞLARI ──────────────────────────────────────────────
+// tip: 'yumurta' | 'tavuk'
+
+export const getKumesSatislar = () => getItem(STORAGE_KEYS.kumesSatis);
+export const saveKumesSatislar = (liste) => setItem(STORAGE_KEYS.kumesSatis, liste);
+
+export const kumesSatisEkle = async (satis) => {
+  const liste = await getKumesSatislar();
+  const yeni = {
+    ...satis,
+    id: generateId(),
+    olusturmaTarihi: new Date().toISOString(),
+  };
+  liste.unshift(yeni);
+  await saveKumesSatislar(liste);
+
+  // Tavuk satışıysa grup sayısını düşür
+  if (satis.tip === 'tavuk' && satis.grupId && satis.adet) {
+    const gruplar = await getKumesGruplar();
+    const guncel = gruplar.map((g) => {
+      if (g.id === satis.grupId) {
+        const yeniSayi = Math.max((parseFloat(g.mevcutSayi) || 0) - parseFloat(satis.adet), 0);
+        return { ...g, mevcutSayi: yeniSayi };
+      }
+      return g;
+    });
+    await saveKumesGruplar(guncel);
+  }
+
+  return yeni;
+};
+
+export const kumesSatisSil = async (id) => {
+  const liste = await getKumesSatislar();
+  const yeni = liste.filter((s) => s.id !== id);
+  await saveKumesSatislar(yeni);
+};
+
+// ─── KÜMES KAYIP KAYITLARI ────────────────────────────────────────
+// Ölüm / kayıp: { grupId, tarih, adet, sebep, not }
+
+export const getKumesKayiplar = () => getItem(STORAGE_KEYS.kumesKayip);
+export const saveKumesKayiplar = (liste) => setItem(STORAGE_KEYS.kumesKayip, liste);
+
+export const kumesKayipEkle = async (kayip) => {
+  const liste = await getKumesKayiplar();
+  const yeni = {
+    ...kayip,
+    id: generateId(),
+    olusturmaTarihi: new Date().toISOString(),
+  };
+  liste.unshift(yeni);
+  await saveKumesKayiplar(liste);
+
+  // Grup sayısını düşür
+  if (kayip.grupId && kayip.adet) {
+    const gruplar = await getKumesGruplar();
+    const guncel = gruplar.map((g) => {
+      if (g.id === kayip.grupId) {
+        const yeniSayi = Math.max((parseFloat(g.mevcutSayi) || 0) - parseFloat(kayip.adet), 0);
+        return { ...g, mevcutSayi: yeniSayi };
+      }
+      return g;
+    });
+    await saveKumesGruplar(guncel);
+  }
+
+  return yeni;
+};
+
+export const kumesKayipSil = async (id) => {
+  const liste = await getKumesKayiplar();
+  // Geri al: sayıyı tekrar artır
+  const kayip = liste.find((k) => k.id === id);
+  if (kayip?.grupId && kayip?.adet) {
+    const gruplar = await getKumesGruplar();
+    const guncel = gruplar.map((g) => {
+      if (g.id === kayip.grupId) {
+        return { ...g, mevcutSayi: (parseFloat(g.mevcutSayi) || 0) + parseFloat(kayip.adet) };
+      }
+      return g;
+    });
+    await saveKumesGruplar(guncel);
+  }
+  const yeni = liste.filter((k) => k.id !== id);
+  await saveKumesKayiplar(yeni);
+};
+
+// ─── KÜMES GENEL İSTATİSTİK ───────────────────────────────────────
+
+export const getKumesGenel = async () => {
+  const gruplar = await getKumesGruplar();
+  const yumurtaKayitlari = await getYumurtaKayitlari();
+  const satislar = await getKumesSatislar();
+  const yemAlimlar = await getKumesYemAlimlar();
+  const kayiplar = await getKumesKayiplar();
+
+  const aktifGruplar = gruplar.filter((g) => g.aktifMi);
+  const toplamTavuk = aktifGruplar.reduce(
+    (acc, g) => acc + parseFloat(g.mevcutSayi || 0), 0
+  );
+
+  // Bugünün yumurta toplamı
+  const bugun = new Date();
+  const bugunStr = `${bugun.getDate().toString().padStart(2, '0')}.${(bugun.getMonth() + 1).toString().padStart(2, '0')}.${bugun.getFullYear()}`;
+  const bugunYumurta = yumurtaKayitlari
+    .filter((k) => k.tarih === bugunStr)
+    .reduce((acc, k) => acc + parseFloat(k.adet || 0), 0);
+
+  // Bu ayki yumurta
+  const ayBaslangic = new Date(bugun.getFullYear(), bugun.getMonth(), 1);
+  const buAyKayitlar = yumurtaKayitlari.filter((k) => {
+    const parcalar = k.tarih.split('.');
+    if (parcalar.length !== 3) return false;
+    const kTarih = new Date(parcalar[2], parcalar[1] - 1, parcalar[0]);
+    return kTarih >= ayBaslangic;
+  });
+  const buAyYumurta = buAyKayitlar.reduce((acc, k) => acc + parseFloat(k.adet || 0), 0);
+  const buAyKirik = buAyKayitlar.reduce((acc, k) => acc + parseFloat(k.kirik || 0), 0);
+
+  // Toplam yumurta satış geliri
+  const yumurtaSatisGeliri = satislar
+    .filter((s) => s.tip === 'yumurta')
+    .reduce((acc, s) => acc + parseFloat(s.tutar || 0), 0);
+
+  // Toplam tavuk satış geliri
+  const tavukSatisGeliri = satislar
+    .filter((s) => s.tip === 'tavuk')
+    .reduce((acc, s) => acc + parseFloat(s.tutar || 0), 0);
+
+  // Toplam yem maliyeti
+  const toplamYemMaliyet = yemAlimlar.reduce(
+    (acc, a) => acc + parseFloat(a.fiyat || 0), 0
+  );
+
+  // Toplam alış maliyeti (gruplar)
+  const toplamAlisMaliyet = gruplar.reduce(
+    (acc, g) => acc + parseFloat(g.alisFiyati || 0), 0
+  );
+
+  const toplamGelir = yumurtaSatisGeliri + tavukSatisGeliri;
+  const toplamMaliyet = toplamYemMaliyet + toplamAlisMaliyet;
+  const netKarZarar = toplamGelir - toplamMaliyet;
+
+  // Bu ay kayıp
+  const buAyKayip = kayiplar
+    .filter((k) => {
+      const parcalar = k.tarih?.split('.');
+      if (!parcalar || parcalar.length !== 3) return false;
+      const kTarih = new Date(parcalar[2], parcalar[1] - 1, parcalar[0]);
+      return kTarih >= ayBaslangic;
+    })
+    .reduce((acc, k) => acc + parseFloat(k.adet || 0), 0);
+
+  return {
+    toplamTavuk,
+    aktifGrupSayisi: aktifGruplar.length,
+    bugunYumurta,
+    buAyYumurta,
+    buAyKirik,
+    yumurtaSatisGeliri,
+    tavukSatisGeliri,
+    toplamGelir,
+    toplamYemMaliyet,
+    toplamAlisMaliyet,
+    toplamMaliyet,
+    netKarZarar,
+    buAyKayip,
+  };
+};
