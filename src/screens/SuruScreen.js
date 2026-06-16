@@ -13,7 +13,7 @@ import COLORS from '../theme/colors';
 import {
   getSuruHayvanlar, suruHayvanEkle, hayvanGuncelle,
   getSutKayitlari, sutKayitEkle, hayvanSutKayitlari,
-  getAktifModul,
+  getAktifModul, getAmbarStokOzeti
 } from '../data/storage';
 import { LAKTASYON_DONEM } from '../data/constants';
 
@@ -34,6 +34,12 @@ export default function SuruScreen({ navigation }) {
   const [sutKayitlar, setSutKayitlar] = useState([]);
   const [aktifTab, setAktifTab] = useState('surum');
   const [yenileniyor, setYenileniyor] = useState(false);
+  
+  const [ambarStok, setAmbarStok] = useState({
+  yemler: [],
+  toplamKg: 0,
+  toplamDeger: 0,
+});
 
   // Modallar
   const [hayvanModal, setHayvanModal] = useState(false);
@@ -49,11 +55,15 @@ export default function SuruScreen({ navigation }) {
   const SURU_RENK = COLORS.suru;
 
   const veriYukle = async () => {
-    const h = await getSuruHayvanlar();
-    setHayvanlar(h);
-    const s = await getSutKayitlari();
-    setSutKayitlar(s);
-  };
+  const h = await getSuruHayvanlar();
+  setHayvanlar(h);
+
+  const s = await getSutKayitlari();
+  setSutKayitlar(s);
+
+  const stok = await getAmbarStokOzeti('sut');
+  setAmbarStok(stok);
+};
 
   useFocusEffect(useCallback(() => { veriYukle(); }, []));
 
@@ -212,7 +222,39 @@ const handleHayvanEkle = async () => {
           <Text style={styles.ozetBantLabel}>Kuru</Text>
         </View>
       </View>
+       {/* Ambar Stok Özeti */}
+<View style={styles.ambarKart}>
+  <View style={styles.ambarUst}>
+    <View style={styles.ambarIkon}>
+      <MaterialCommunityIcons name="barn" size={22} color={SURU_RENK} />
+    </View>
 
+    <View style={{ flex: 1 }}>
+      <Text style={styles.ambarBaslik}>Süt Yemi Stoku</Text>
+      <Text style={styles.ambarAlt}>
+        Ambar'daki süt ve genel yem stokları
+      </Text>
+    </View>
+  </View>
+
+  <View style={styles.ambarMetrikSatir}>
+    <View style={styles.ambarMetrik}>
+      <Text style={styles.ambarMetrikBaslik}>Kalan Yem</Text>
+      <Text style={styles.ambarMetrikDeger}>
+        {Number(ambarStok.toplamKg || 0).toLocaleString('tr-TR')} kg
+      </Text>
+    </View>
+
+    <View style={styles.ambarMetrik}>
+      <Text style={styles.ambarMetrikBaslik}>Stok Değeri</Text>
+      <Text style={styles.ambarMetrikDeger}>
+        {Number(ambarStok.toplamDeger || 0).toLocaleString('tr-TR', {
+          maximumFractionDigits: 2,
+           })} TL
+          </Text>
+        </View>
+       </View>
+    </View>
       {/* Tab Bar */}
       <View style={styles.tabBar}>
         {tabs.map(t => (
@@ -756,5 +798,58 @@ const styles = StyleSheet.create({
   },
 
   kaydetButon: { borderRadius: 16, padding: 16, alignItems: 'center', marginTop: 10, marginBottom: 30 },
-  kaydetYazi: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+ kaydetYazi: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
+
+ambarKart: {
+  backgroundColor: '#fff',
+  borderRadius: 18,
+  padding: 14,
+  marginTop: 12,
+  marginBottom: 12,
+  elevation: 2,
+},
+ambarUst: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 10,
+},
+ambarIkon: {
+  width: 42,
+  height: 42,
+  borderRadius: 14,
+  backgroundColor: '#EAF3F8',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+ambarBaslik: {
+  fontSize: 16,
+  fontWeight: '800',
+  color: COLORS.textPrimary,
+},
+ambarAlt: {
+  marginTop: 3,
+  fontSize: 12,
+  color: COLORS.textSecondary,
+},
+ambarMetrikSatir: {
+  flexDirection: 'row',
+  gap: 10,
+  marginTop: 14,
+},
+ambarMetrik: {
+  flex: 1,
+  backgroundColor: COLORS.background,
+  borderRadius: 12,
+  padding: 10,
+},
+ambarMetrikBaslik: {
+  fontSize: 12,
+  color: COLORS.textSecondary,
+},
+ambarMetrikDeger: {
+  marginTop: 4,
+  fontSize: 15,
+  fontWeight: '900',
+  color: COLORS.textPrimary,
+},
 });
