@@ -43,9 +43,15 @@ export default function YemScreen() {
 
   const modulRenk = aktifModul === 'besi' ? COLORS.besi : COLORS.suru;
 
+  // Toplam harcama sadece alım kayıtlarından (anlamlı)
   const toplamHarcama = alimlar.reduce((acc, a) => acc + parseFloat(a.fiyat || 0), 0);
   const toplamKg = alimlar.reduce((acc, a) => acc + parseFloat(a.miktar || 0), 0);
-  const kritikStok = stoklar.filter(s => s.yuzde <= 10 && s.toplamAlinan > 0);
+
+  // Kritik stok: alım yapılmış ama %10 veya altında kalanlar
+  const kritikStok = stoklar.filter(s => s.toplamAlinan > 0 && s.yuzde <= 10);
+
+  // Alım yapılmadan yem verilmiş tipler — uyarı göster
+  const kayitsizKullanim = stoklar.filter(s => s.kayitsizKullanim);
 
   const handleEkle = async () => {
     if (!form.miktar || !form.fiyat) {
@@ -58,11 +64,6 @@ export default function YemScreen() {
     veriYukle();
   };
 
-  const kgBasinaMaliyet = () => {
-    if (toplamKg === 0) return '0';
-    return (toplamHarcama / toplamKg).toFixed(2);
-  };
-
   return (
     <View style={styles.container}>
       <HeaderBar
@@ -73,7 +74,7 @@ export default function YemScreen() {
         sagOnPress={() => setEkleModal(true)}
       />
 
-      {/* Kritik Uyarı */}
+      {/* Kritik Stok Uyarısı */}
       {kritikStok.length > 0 && (
         <View style={styles.kritikBant}>
           <MaterialCommunityIcons name="alert" size={18} color={COLORS.danger} />
@@ -82,6 +83,19 @@ export default function YemScreen() {
               const bilgi = YEM_TIPLERI.find(y => y.id === s.tip);
               return bilgi?.label || s.tip;
             }).join(', ')} stoğu kritik seviyede!
+          </Text>
+        </View>
+      )}
+
+      {/* Kayıtsız Kullanım Uyarısı */}
+      {kayitsizKullanim.length > 0 && (
+        <View style={[styles.kritikBant, { backgroundColor: COLORS.warning + '20', borderBottomColor: COLORS.warning + '40' }]}>
+          <MaterialCommunityIcons name="information-outline" size={18} color={COLORS.warning} />
+          <Text style={[styles.kritikYazi, { color: COLORS.warning }]}>
+            {kayitsizKullanim.map(s => {
+              const bilgi = YEM_TIPLERI.find(y => y.id === s.tip);
+              return bilgi?.label || s.tip;
+            }).join(', ')} için alım kaydı yok ama tartımda kullanım var. Alım girmeyi unutmadın mı?
           </Text>
         </View>
       )}
@@ -97,14 +111,17 @@ export default function YemScreen() {
         <OzetMini
           ikon="weight"
           baslik="Toplam Alınan"
-          deger={`${Math.round(toplamKg)} kg`}
+          deger={`${Math.round(toplamKg).toLocaleString('tr-TR')} kg`}
           renk={COLORS.accent}
         />
         <OzetMini
-          ikon="calculator"
-          baslik="kg Başına"
-          deger={`${kgBasinaMaliyet()} ₺`}
-          renk={COLORS.textSecondary}
+          ikon="package-variant"
+          baslik="Stokta"
+          deger={`${stoklar
+            .filter(s => s.toplamAlinan > 0)
+            .reduce((acc, s) => acc + s.kalan, 0)
+            .toLocaleString('tr-TR')} kg`}
+          renk={COLORS.success}
         />
       </View>
 
@@ -145,9 +162,26 @@ export default function YemScreen() {
               stoklar
                 .filter(s => s.toplamAlinan > 0)
                 .sort((a, b) => a.yuzde - b.yuzde)
-                .map(s => (
-                  <StokBar key={s.tip} stok={s} modulRenk={modulRenk} />
-                ))
+                .map(s => {
+                  const bilgi = YEM_TIPLERI.find(y => y.id === s.tip);
+                  return (
+                    <View key={s.tip} style={styles.stokKart}>
+                      <StokBar stok={s} modulRenk={modulRenk} />
+                      {/* Tip bazında kg başına maliyet */}
+                      {s.kgBasinaMaliyet && (
+                        <View style={styles.stokMaliyetSatir}>
+                          <MaterialCommunityIcons name="calculator-variant-outline" size={13} color={COLORS.textLight} />
+                          <Text style={styles.stokMaliyetYazi}>
+                            {bilgi?.label || s.tip} için ortalama{' '}
+                            <Text style={{ fontWeight: '800', color: COLORS.textSecondary }}>
+                              {s.kgBasinaMaliyet} TL/kg
+                            </Text>
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })
             )}
           </View>
         )}
@@ -166,6 +200,10 @@ export default function YemScreen() {
             ) : (
               alimlar.map(a => {
                 const bilgi = YEM_TIPLERI.find(y => y.id === a.tip);
+                const miktarSayi = parseFloat(a.miktar || 0);
+                const fiyatSayi = parseFloat(a.fiyat || 0);
+                const kgFiyat = miktarSayi > 0 ? (fiyatSayi / miktarSayi).toFixed(2) : null;
+
                 return (
                   <View key={a.id} style={styles.alimKart}>
                     <View style={[styles.alimIkon, { backgroundColor: (bilgi?.renk || modulRenk) + '20' }]}>
@@ -177,39 +215,43 @@ export default function YemScreen() {
                     </View>
                     <View style={styles.alimBilgi}>
                       <Text style={styles.alimTip}>{bilgi?.label || a.tip}</Text>
-                      <Text style={styles.alimAlt}>{a.tarih} • {a.miktar} kg</Text>
+                      <Text style={styles.alimAlt}>
+                        {a.tarih} • {miktarSayi.toLocaleString('tr-TR')} kg
+                      </Text>
+                      {kgFiyat && (
+                        <Text style={styles.alimKgDetay}>
+                          {kgFiyat} TL/kg
+                        </Text>
+                      )}
                       {a.not ? <Text style={styles.alimNot}>{a.not}</Text> : null}
                     </View>
                     <View style={styles.alimFiyatKutu}>
                       <Text style={[styles.alimFiyat, { color: modulRenk }]}>
-                        {parseFloat(a.fiyat).toLocaleString('tr-TR')} ₺
-                      </Text>
-                      <Text style={styles.alimKgFiyat}>
-                        {(parseFloat(a.fiyat) / parseFloat(a.miktar)).toFixed(1)} ₺/kg
+                        {fiyatSayi.toLocaleString('tr-TR')} ₺
                       </Text>
                     </View>
-                        <TouchableOpacity
-                          onPress={() => {
-                          Alert.alert(
-                         'Kaydı Sil',
-                        'Bu yem alım kaydı silinecek. Emin misiniz?',
-                   [
-                        { text: 'İptal', style: 'cancel' },
-                   {
-                         text: 'Sil',
-                         style: 'destructive',
-                         onPress: async () => {
-                   await yemAlimSil(a.id);
-               veriYukle();
-          },
-        },
-      ]
-    );
-  }}
-  style={{ padding: 6 }}
->
-  <MaterialCommunityIcons name="trash-can-outline" size={20} color={COLORS.danger} />
-</TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => {
+                        Alert.alert(
+                          'Kaydı Sil',
+                          `${bilgi?.label || a.tip} — ${miktarSayi} kg alım kaydı silinecek.\n\nBu işlem stok miktarını da etkiler. Emin misiniz?`,
+                          [
+                            { text: 'İptal', style: 'cancel' },
+                            {
+                              text: 'Evet, Sil',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await yemAlimSil(a.id);
+                                veriYukle();
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                      style={styles.silButon}
+                    >
+                      <MaterialCommunityIcons name="trash-can-outline" size={20} color={COLORS.danger} />
+                    </TouchableOpacity>
                   </View>
                 );
               })
@@ -289,7 +331,7 @@ export default function YemScreen() {
             />
 
             {/* Kg başına maliyet önizleme */}
-            {form.miktar && form.fiyat ? (
+            {form.miktar && form.fiyat && parseFloat(form.miktar) > 0 ? (
               <View style={[styles.onizlemeKutu, { backgroundColor: modulRenk + '15' }]}>
                 <Text style={[styles.onizlemeYazi, { color: modulRenk }]}>
                   kg başına ≈ {(parseFloat(form.fiyat) / parseFloat(form.miktar)).toFixed(2)} TL
@@ -393,6 +435,16 @@ const styles = StyleSheet.create({
   },
   tabYazi: { fontSize: 13, fontWeight: '700', color: COLORS.textLight },
 
+  // Stok kart sarmalayıcı (StokBar + maliyet satırı)
+  stokKart: {
+    marginBottom: 4,
+  },
+  stokMaliyetSatir: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 4, paddingBottom: 10,
+  },
+  stokMaliyetYazi: { fontSize: 12, color: COLORS.textLight },
+
   alimKart: {
     backgroundColor: COLORS.surface, borderRadius: 14,
     padding: 14, marginBottom: 8,
@@ -400,14 +452,18 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04, shadowRadius: 3, elevation: 2,
   },
-  alimIkon: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  alimIkon: {
+    width: 44, height: 44, borderRadius: 12,
+    justifyContent: 'center', alignItems: 'center',
+  },
   alimBilgi: { flex: 1 },
   alimTip: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
   alimAlt: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  alimKgDetay: { fontSize: 11, color: COLORS.textLight, marginTop: 1 },
   alimNot: { fontSize: 11, color: COLORS.textLight, marginTop: 2 },
   alimFiyatKutu: { alignItems: 'flex-end' },
   alimFiyat: { fontSize: 15, fontWeight: '900' },
-  alimKgFiyat: { fontSize: 11, color: COLORS.textLight, marginTop: 2 },
+  silButon: { padding: 6 },
 
   fab: {
     position: 'absolute', bottom: 24, right: 20,
@@ -443,13 +499,19 @@ const styles = StyleSheet.create({
   onizlemeYazi: { fontSize: 14, fontWeight: '700' },
 
   formGrup: { marginBottom: 14 },
-  formLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  formLabel: {
+    fontSize: 12, fontWeight: '600', color: COLORS.textSecondary,
+    marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5,
+  },
   formInput: {
     backgroundColor: COLORS.background, borderRadius: 12,
     padding: 14, fontSize: 15, color: COLORS.textPrimary,
     borderWidth: 1, borderColor: COLORS.border,
   },
 
-  kaydetButon: { borderRadius: 16, padding: 16, alignItems: 'center', marginTop: 10, marginBottom: 30 },
+  kaydetButon: {
+    borderRadius: 16, padding: 16, alignItems: 'center',
+    marginTop: 10, marginBottom: 30,
+  },
   kaydetYazi: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
 });
