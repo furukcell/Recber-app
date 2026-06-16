@@ -1,56 +1,74 @@
 workflows:
-  android-release:
-    name: Recber Android Build
-    max_build_duration: 60
+android-release:
+name: Recber Android Build
+max_build_duration: 60
 
-    environment:
-      groups:
-        - recber
-      node: 18.18.0
+```
+environment:
+  groups:
+    - recber
+  node: 18.18.0
 
-    scripts:
-      - name: Install dependencies
-        script: |
-          npm install --legacy-peer-deps
+scripts:
+  - name: Install dependencies
+    script: |
+      npm install --legacy-peer-deps
 
-      - name: Expo prebuild
-        script: |
-          npx expo prebuild --clean --platform android
+  - name: Expo prebuild
+    script: |
+      npx expo prebuild --clean --platform android
 
-          # Google Play target SDK şartı için Android 15 / API 35
-          sed -i '' 's/targetSdkVersion = [0-9][0-9]*/targetSdkVersion = 35/g' android/build.gradle || true
-          sed -i '' 's/compileSdkVersion = [0-9][0-9]*/compileSdkVersion = 35/g' android/build.gradle || true
-          sed -i '' 's/minSdkVersion = [0-9][0-9]*/minSdkVersion = 24/g' android/build.gradle || true
+      # Google Play target SDK şartı için Android 15 / API 35
+      sed -i '' 's/targetSdkVersion = [0-9][0-9]*/targetSdkVersion = 35/g' android/build.gradle || true
+      sed -i '' 's/compileSdkVersion = [0-9][0-9]*/compileSdkVersion = 35/g' android/build.gradle || true
+      sed -i '' 's/minSdkVersion = [0-9][0-9]*/minSdkVersion = 24/g' android/build.gradle || true
 
-          sed -i '' 's/targetSdkVersion rootProject.ext.targetSdkVersion/targetSdkVersion 35/g' android/app/build.gradle || true
-          sed -i '' 's/targetSdkVersion [0-9][0-9]*/targetSdkVersion 35/g' android/app/build.gradle || true
-          sed -i '' 's/compileSdkVersion rootProject.ext.compileSdkVersion/compileSdkVersion 35/g' android/app/build.gradle || true
-          sed -i '' 's/compileSdkVersion [0-9][0-9]*/compileSdkVersion 35/g' android/app/build.gradle || true
+      sed -i '' 's/targetSdkVersion rootProject.ext.targetSdkVersion/targetSdkVersion 35/g' android/app/build.gradle || true
+      sed -i '' 's/targetSdkVersion [0-9][0-9]*/targetSdkVersion 35/g' android/app/build.gradle || true
+      sed -i '' 's/compileSdkVersion rootProject.ext.compileSdkVersion/compileSdkVersion 35/g' android/app/build.gradle || true
+      sed -i '' 's/compileSdkVersion [0-9][0-9]*/compileSdkVersion 35/g' android/app/build.gradle || true
 
-          sed -i '' '/enableBundleCompression/d' android/app/build.gradle || true
+      sed -i '' '/enableBundleCompression/d' android/app/build.gradle || true
 
-      - name: Build Android APK
-        script: |
-          cd android
-          ./gradlew assembleRelease
+  - name: Build Android APK
+    script: |
+      cd android
+      ./gradlew assembleRelease
 
-      - name: Sign APK
-        script: |
-          echo "$CM_KEYSTORE" | base64 --decode > /tmp/keystore.jks
+  - name: Sign APK
+    script: |
+      echo "$CM_KEYSTORE" | base64 --decode > /tmp/keystore.jks
 
-          cd android/app/build/outputs/apk/release
+      cd android/app/build/outputs/apk/release
 
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-            -keystore /tmp/keystore.jks \
-            -storepass "$CM_KEYSTORE_PASSWORD" \
-            -keypass "$CM_KEY_PASSWORD" \
-            app-release.apk \
-            "$CM_KEY_ALIAS"
+      BUILD_TOOLS_DIR=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
 
-    artifacts:
-      - android/app/build/outputs/apk/release/*.apk
+      if [ -f app-release-unsigned.apk ]; then
+        INPUT_APK="app-release-unsigned.apk"
+      else
+        INPUT_APK="app-release.apk"
+      fi
 
-    publishing:
-      email:
-        recipients:
-          - kurtulusfaruk94@gmail.com
+      echo "Using build tools: $BUILD_TOOLS_DIR"
+      echo "Input APK: $INPUT_APK"
+
+      "$BUILD_TOOLS_DIR/zipalign" -f -p 4 "$INPUT_APK" app-release-aligned.apk
+
+      "$BUILD_TOOLS_DIR/apksigner" sign \
+        --ks /tmp/keystore.jks \
+        --ks-pass pass:"$CM_KEYSTORE_PASSWORD" \
+        --key-pass pass:"$CM_KEY_PASSWORD" \
+        --ks-key-alias "$CM_KEY_ALIAS" \
+        --out app-release-signed.apk \
+        app-release-aligned.apk
+
+      "$BUILD_TOOLS_DIR/apksigner" verify --verbose app-release-signed.apk
+
+artifacts:
+  - android/app/build/outputs/apk/release/app-release-signed.apk
+
+publishing:
+  email:
+    recipients:
+      - kurtulusfaruk94@gmail.com
+```
