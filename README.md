@@ -514,6 +514,21 @@ Build öncesi şu akış test edilmeli:
 4. Ayarlar → Yedekten Geri Yükle → veriler geri gelir
 5. Ücretsiz limit aşılınca Pro ekranı açılır
 6. İnternet yokken uygulama ana özellikleri çalışmaya devam eder
+   
+Market öncesi yapılacak net liste
+
+RevenueCat + Google Play Billing bağlanacak.
+Pro satın alma, iptal, başarısız ödeme, geri yükleme test edilecek.
+Kapalı test yapılacak.
+Besi modülü baştan sona test edilecek.
+Sürü modülü: inek ekle, süt gir, rapor aç, modül değiştir test edilecek.
+Kümes modülü: grup, yumurta, yem, satış, kayıp, finans test edilecek.
+Ayarlar: yedek al, geri yükle, tüm verileri sil test edilecek.
+Hakkımızda ve KVKK ekranları açılıyor mu test edilecek.
+Veri silme web sayfası hazırlanacak.
+Gizlilik politikası web sayfası hazırlanacak.
+Play Store açıklama ve ekran görüntüleri hazırlanacak.
+Target SDK 35 ve imzalı build sorunsuz alınacak.
 
 ---
 
