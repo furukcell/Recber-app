@@ -15,6 +15,7 @@ import VeterinerScreen from './src/screens/VeterinerScreen';
 import RaporScreen from './src/screens/RaporScreen';
 import AyarlarScreen from './src/screens/AyarlarScreen';
 import SuruScreen from './src/screens/SuruScreen';
+import KumesScreen from './src/screens/KumesScreen';
 
 // Theme
 import COLORS from './src/theme/colors';
@@ -36,7 +37,7 @@ function HayvanlarStack() {
 }
 
 // ─── BOTTOM TAB NAVIGATOR ─────────────────────────────────────────
-function MainTabs({ aktifModul }) {
+function MainTabs({ aktifModul, onModulDegis }) {
   const modulRenk = aktifModul === 'besi' ? COLORS.besi : COLORS.suru;
 
   return (
@@ -92,12 +93,24 @@ function MainTabs({ aktifModul }) {
       <Tab.Screen name="Veteriner" component={VeterinerScreen} />
       <Tab.Screen name="Rapor" component={RaporScreen} />
       <Tab.Screen
-       name="Ayarlar"
-       children={() => (
-       <AyarlarScreen onModulDegis={handleModulSecim} />
-     )}
-   />
+        name="Ayarlar"
+        children={() => (
+          <AyarlarScreen onModulDegis={onModulDegis} />
+        )}
+      />
     </Tab.Navigator>
+  );
+}
+
+// ─── ROOT STACK (Tabs + Kümes) ────────────────────────────────────
+function RootNavigator({ aktifModul, onModulDegis }) {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs">
+        {() => <MainTabs aktifModul={aktifModul} onModulDegis={onModulDegis} />}
+      </Stack.Screen>
+      <Stack.Screen name="Kumes" component={KumesScreen} />
+    </Stack.Navigator>
   );
 }
 
@@ -195,7 +208,7 @@ export default function App() {
       {!aktifModul ? (
         <ModulSecimEkrani onSecim={handleModulSecim} />
       ) : (
-        <MainTabs aktifModul={aktifModul} />
+        <RootNavigator aktifModul={aktifModul} onModulDegis={handleModulSecim} />
       )}
     </NavigationContainer>
   );
