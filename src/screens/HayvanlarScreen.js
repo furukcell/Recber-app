@@ -10,7 +10,10 @@ import { useFocusEffect } from '@react-navigation/native';
 import HeaderBar from '../components/HeaderBar';
 import HayvanKart from '../components/HayvanKart';
 import COLORS from '../theme/colors';
-import { getHayvanlar, hayvanEkle, hayvanSil, getAktifModul, getProDurum } from '../data/storage';
+import {
+  getHayvanlar, hayvanEkle, hayvanGuncelle, hayvanSil,
+  getAktifModul, getProDurum
+} from '../data/storage';
 import { IRK_LISTESI, APP } from '../data/constants';
 
 const BOŞ_HAYVAN = {
@@ -24,8 +27,11 @@ export default function HayvanlarScreen({ navigation }) {
   const [aktifModul, setModul] = useState('besi');
   const [isPro, setIsPro] = useState(false);
   const [ekleModal, setEkleModal] = useState(false);
+  const [duzenleModal, setDuzenleModal] = useState(false);
   const [proModal, setProModal] = useState(false);
   const [form, setForm] = useState(BOŞ_HAYVAN);
+  const [duzenleForm, setDuzenleForm] = useState(BOŞ_HAYVAN);
+  const [duzenlenecekId, setDuzenlenecekId] = useState(null);
   const [filtre, setFiltre] = useState('aktif');
   const [yenileniyor, setYenileniyor] = useState(false);
 
@@ -57,7 +63,6 @@ export default function HayvanlarScreen({ navigation }) {
 
   // ─── HAYVAN EKLE ──────────────────────────────────────────────
   const handleEkleBasin = () => {
-    // Ücretsiz limit kontrolü
     if (!isPro && aktifSayisi >= APP.ucretsizLimit) {
       setProModal(true);
       return;
@@ -76,14 +81,48 @@ export default function HayvanlarScreen({ navigation }) {
     veriYukle();
   };
 
+  // ─── HAYVAN DÜZENLE ───────────────────────────────────────────
+  const handleDuzenleBasin = (hayvan) => {
+    setDuzenlenecekId(hayvan.id);
+    setDuzenleForm({
+      isim: hayvan.isim || '',
+      kupeNo: hayvan.kupeNo || '',
+      alisKilo: hayvan.alisKilo || '',
+      alisFiyat: hayvan.alisFiyat || '',
+      alisYeri: hayvan.alisYeri || '',
+      alisTarihi: hayvan.alisTarihi || '',
+      irk: hayvan.irk || '',
+      cinsiyet: hayvan.cinsiyet || '',
+      dogumTarihi: hayvan.dogumTarihi || '',
+      hedefKilo: hayvan.hedefKilo || '',
+      not: hayvan.not || '',
+    });
+    setDuzenleModal(true);
+  };
+
+  const handleDuzenleKaydet = async () => {
+    if (!duzenleForm.isim || !duzenleForm.alisKilo) {
+      Alert.alert('Eksik Bilgi', 'İsim ve alış kilosu zorunludur.');
+      return;
+    }
+    await hayvanGuncelle(duzenlenecekId, duzenleForm);
+    setDuzenleModal(false);
+    setDuzenlenecekId(null);
+    setDuzenleForm(BOŞ_HAYVAN);
+    veriYukle();
+    Alert.alert('Kaydedildi ✅', 'Hayvan bilgileri güncellendi.');
+  };
+
+  // ─── HAYVAN SİL ───────────────────────────────────────────────
   const handleSil = (hayvan) => {
     Alert.alert(
       'Hayvanı Sil',
-      `${hayvan.isim} silinecek. Emin misiniz?`,
+      `"${hayvan.isim}" kalıcı olarak silinecek.\n\nTartım, aşı ve sağlık kayıtları da silinmez ama bu hayvana ait görünmez.\n\nEmin misiniz?`,
       [
         { text: 'İptal', style: 'cancel' },
         {
-          text: 'Sil', style: 'destructive',
+          text: 'Evet, Sil',
+          style: 'destructive',
           onPress: async () => {
             await hayvanSil(hayvan.id);
             veriYukle();
@@ -105,13 +144,18 @@ export default function HayvanlarScreen({ navigation }) {
 
       {/* Ücretsiz limit göstergesi */}
       {!isPro && (
-        <View style={[styles.limitBant, { backgroundColor: aktifSayisi >= APP.ucretsizLimit ? COLORS.danger + '15' : modulRenk + '10' }]}>
+        <View style={[styles.limitBant, {
+          backgroundColor: aktifSayisi >= APP.ucretsizLimit
+            ? COLORS.danger + '15' : modulRenk + '10'
+        }]}>
           <MaterialCommunityIcons
             name={aktifSayisi >= APP.ucretsizLimit ? 'lock' : 'information-outline'}
             size={15}
             color={aktifSayisi >= APP.ucretsizLimit ? COLORS.danger : modulRenk}
           />
-          <Text style={[styles.limitYazi, { color: aktifSayisi >= APP.ucretsizLimit ? COLORS.danger : COLORS.textSecondary }]}>
+          <Text style={[styles.limitYazi, {
+            color: aktifSayisi >= APP.ucretsizLimit ? COLORS.danger : COLORS.textSecondary
+          }]}>
             {aktifSayisi >= APP.ucretsizLimit
               ? `Ücretsiz limit doldu (${APP.ucretsizLimit} hayvan). Pro'ya geç.`
               : `Ücretsiz: ${aktifSayisi}/${APP.ucretsizLimit} hayvan`}
@@ -123,6 +167,12 @@ export default function HayvanlarScreen({ navigation }) {
           )}
         </View>
       )}
+
+      {/* Long-press ipucu */}
+      <View style={styles.ipucuBant}>
+        <MaterialCommunityIcons name="gesture-tap-hold" size={14} color={COLORS.textLight} />
+        <Text style={styles.ipucuYazi}>Düzenlemek veya silmek için karta uzun bas</Text>
+      </View>
 
       {/* Filtre Sekmeler */}
       <View style={styles.filtreSatir}>
@@ -146,7 +196,9 @@ export default function HayvanlarScreen({ navigation }) {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollIcerik}
-        refreshControl={<RefreshControl refreshing={yenileniyor} onRefresh={onYenile} tintColor={modulRenk} />}
+        refreshControl={
+          <RefreshControl refreshing={yenileniyor} onRefresh={onYenile} tintColor={modulRenk} />
+        }
       >
         {filtrelenmis.length === 0 ? (
           <View style={styles.bosDurum}>
@@ -166,6 +218,8 @@ export default function HayvanlarScreen({ navigation }) {
               hayvan={h}
               modulRenk={modulRenk}
               onPress={() => navigation.navigate('HayvanDetay', { hayvanId: h.id })}
+              onDuzenle={handleDuzenleBasin}
+              onSil={handleSil}
             />
           ))
         )}
@@ -188,59 +242,46 @@ export default function HayvanlarScreen({ navigation }) {
               <MaterialCommunityIcons name="close" size={28} color={COLORS.textPrimary} />
             </TouchableOpacity>
           </View>
-
           <ScrollView style={styles.modalScroll}>
-            <FormInput label="İsim / Takma Ad *" placeholder="Örn: Paşa" value={form.isim} onChange={v => setForm({ ...form, isim: v })} />
-            <FormInput label="Küpe No" placeholder="Örn: TR48-001" value={form.kupeNo} onChange={v => setForm({ ...form, kupeNo: v })} />
-
-            {/* Irk Seçimi */}
-            <Text style={styles.formLabel}>Irk</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-              {IRK_LISTESI.map(irk => (
-                <TouchableOpacity
-                  key={irk.id}
-                  style={[styles.irkButon, form.irk === irk.id && { backgroundColor: modulRenk, borderColor: modulRenk }]}
-                  onPress={() => setForm({ ...form, irk: irk.id })}
-                >
-                  <Text style={[styles.irkButonYazi, form.irk === irk.id && { color: '#fff' }]}>
-                    {irk.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Cinsiyet */}
-            <Text style={styles.formLabel}>Cinsiyet</Text>
-            <View style={styles.cinsiyetSatir}>
-              {[
-                { id: 'erkek', label: '♂ Erkek' },
-                { id: 'disi', label: '♀ Dişi' },
-              ].map(c => (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[styles.cinsiyetButon, form.cinsiyet === c.id && { backgroundColor: modulRenk, borderColor: modulRenk }]}
-                  onPress={() => setForm({ ...form, cinsiyet: c.id })}
-                >
-                  <Text style={[styles.cinsiyetYazi, form.cinsiyet === c.id && { color: '#fff' }]}>
-                    {c.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <FormInput label="Doğum Tarihi" placeholder="Örn: 15.03.2024" value={form.dogumTarihi} onChange={v => setForm({ ...form, dogumTarihi: v })} />
-            <FormInput label="Alış Kilo (kg) *" placeholder="Örn: 250" value={form.alisKilo} onChange={v => setForm({ ...form, alisKilo: v })} klavye="numeric" />
-            <FormInput label="Hedef Kilo (kg)" placeholder="Örn: 550" value={form.hedefKilo} onChange={v => setForm({ ...form, hedefKilo: v })} klavye="numeric" />
-            <FormInput label="Alış Fiyatı (TL)" placeholder="Örn: 75000" value={form.alisFiyat} onChange={v => setForm({ ...form, alisFiyat: v })} klavye="numeric" />
-            <FormInput label="Alındığı Yer" placeholder="Örn: Milas Hayvan Pazarı" value={form.alisYeri} onChange={v => setForm({ ...form, alisYeri: v })} />
-            <FormInput label="Alış Tarihi" placeholder="Örn: 01.03.2026" value={form.alisTarihi} onChange={v => setForm({ ...form, alisTarihi: v })} />
-            <FormInput label="Not" placeholder="Opsiyonel not" value={form.not} onChange={v => setForm({ ...form, not: v })} />
-
+            <HayvanForm
+              form={form}
+              setForm={setForm}
+              modulRenk={modulRenk}
+            />
             <TouchableOpacity
               style={[styles.kaydetButon, { backgroundColor: modulRenk }]}
               onPress={handleEkle}
             >
               <Text style={styles.kaydetYazi}>HAYVAN EKLE</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ─── HAYVAN DÜZENLE MODAL ─── */}
+      <Modal visible={duzenleModal} animationType="slide">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalUst}>
+            <Text style={styles.modalBaslik}>Hayvanı Düzenle</Text>
+            <TouchableOpacity onPress={() => {
+              setDuzenleModal(false);
+              setDuzenlenecekId(null);
+              setDuzenleForm(BOŞ_HAYVAN);
+            }}>
+              <MaterialCommunityIcons name="close" size={28} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalScroll}>
+            <HayvanForm
+              form={duzenleForm}
+              setForm={setDuzenleForm}
+              modulRenk={modulRenk}
+            />
+            <TouchableOpacity
+              style={[styles.kaydetButon, { backgroundColor: modulRenk }]}
+              onPress={handleDuzenleKaydet}
+            >
+              <Text style={styles.kaydetYazi}>KAYDET</Text>
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
@@ -253,26 +294,22 @@ export default function HayvanlarScreen({ navigation }) {
             <Text style={styles.proModalIkon}>⭐</Text>
             <Text style={styles.proModalBaslik}>Reçber Pro</Text>
             <Text style={styles.proModalAlt}>Sınırsız hayvan takibi</Text>
-
             <Text style={styles.proModalMetin}>
               Besi Pro ile sınırsız hayvan takip edin.{'\n\n'}
               Hayvan başı kilo artışı, yem maliyeti, veteriner gideri ve tahmini kâr/zarar hesabını görün.
               Satış zamanınızı daha bilinçli planlayın.{'\n\n'}
               Sadece 1 kg karkas farkı bile uygulama ücretini karşılayabilir.
             </Text>
-
             <View style={[styles.proFiyatKutu, { backgroundColor: COLORS.accent + '20' }]}>
               <Text style={styles.proFiyat}>{APP.proFiyat} TL</Text>
               <Text style={styles.proFiyatAlt}>Tek Seferlik</Text>
             </View>
-
             <TouchableOpacity
               style={[styles.proButon, { backgroundColor: COLORS.textLight }]}
               onPress={() => Alert.alert('Yakında', 'Satın alma özelliği yakında aktif olacak.')}
             >
               <Text style={styles.proButonYazi}>Satın alma yakında</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={styles.proKapat} onPress={() => setProModal(false)}>
               <Text style={styles.proKapatYazi}>Kapat</Text>
             </TouchableOpacity>
@@ -280,6 +317,70 @@ export default function HayvanlarScreen({ navigation }) {
         </View>
       </Modal>
     </View>
+  );
+}
+
+// ─── HAYVAN FORM (Ekle ve Düzenle için ortak) ─────────────────────
+
+function HayvanForm({ form, setForm, modulRenk }) {
+  return (
+    <>
+      <FormInput
+        label="İsim / Takma Ad *"
+        placeholder="Örn: Paşa"
+        value={form.isim}
+        onChange={v => setForm({ ...form, isim: v })}
+      />
+      <FormInput
+        label="Küpe No"
+        placeholder="Örn: TR48-001"
+        value={form.kupeNo}
+        onChange={v => setForm({ ...form, kupeNo: v })}
+      />
+
+      {/* Irk Seçimi */}
+      <Text style={styles.formLabel}>Irk</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+        {IRK_LISTESI.map(irk => (
+          <TouchableOpacity
+            key={irk.id}
+            style={[styles.irkButon, form.irk === irk.id && { backgroundColor: modulRenk, borderColor: modulRenk }]}
+            onPress={() => setForm({ ...form, irk: irk.id })}
+          >
+            <Text style={[styles.irkButonYazi, form.irk === irk.id && { color: '#fff' }]}>
+              {irk.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Cinsiyet */}
+      <Text style={styles.formLabel}>Cinsiyet</Text>
+      <View style={styles.cinsiyetSatir}>
+        {[
+          { id: 'erkek', label: '♂ Erkek' },
+          { id: 'disi', label: '♀ Dişi' },
+        ].map(c => (
+          <TouchableOpacity
+            key={c.id}
+            style={[styles.cinsiyetButon, form.cinsiyet === c.id && { backgroundColor: modulRenk, borderColor: modulRenk }]}
+            onPress={() => setForm({ ...form, cinsiyet: c.id })}
+          >
+            <Text style={[styles.cinsiyetYazi, form.cinsiyet === c.id && { color: '#fff' }]}>
+              {c.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <FormInput label="Doğum Tarihi" placeholder="Örn: 15.03.2024" value={form.dogumTarihi} onChange={v => setForm({ ...form, dogumTarihi: v })} />
+      <FormInput label="Alış Kilo (kg) *" placeholder="Örn: 250" value={form.alisKilo} onChange={v => setForm({ ...form, alisKilo: v })} klavye="numeric" />
+      <FormInput label="Hedef Kilo (kg)" placeholder="Örn: 550" value={form.hedefKilo} onChange={v => setForm({ ...form, hedefKilo: v })} klavye="numeric" />
+      <FormInput label="Alış Fiyatı (TL)" placeholder="Örn: 75000" value={form.alisFiyat} onChange={v => setForm({ ...form, alisFiyat: v })} klavye="numeric" />
+      <FormInput label="Alındığı Yer" placeholder="Örn: Milas Hayvan Pazarı" value={form.alisYeri} onChange={v => setForm({ ...form, alisYeri: v })} />
+      <FormInput label="Alış Tarihi" placeholder="Örn: 01.03.2026" value={form.alisTarihi} onChange={v => setForm({ ...form, alisTarihi: v })} />
+      <FormInput label="Not" placeholder="Opsiyonel not" value={form.not} onChange={v => setForm({ ...form, not: v })} />
+    </>
   );
 }
 
@@ -314,6 +415,14 @@ const styles = StyleSheet.create({
   },
   limitYazi: { flex: 1, fontSize: 12, fontWeight: '600' },
   proLink: { fontSize: 13, fontWeight: '800' },
+
+  ipucuBant: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 16, paddingVertical: 6,
+    backgroundColor: COLORS.background,
+    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+  },
+  ipucuYazi: { fontSize: 11, color: COLORS.textLight },
 
   filtreSatir: {
     flexDirection: 'row', backgroundColor: COLORS.surface,
@@ -375,13 +484,15 @@ const styles = StyleSheet.create({
   },
   cinsiyetYazi: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary },
 
-  kaydetButon: { borderRadius: 16, padding: 16, alignItems: 'center', marginTop: 10, marginBottom: 30 },
+  kaydetButon: {
+    borderRadius: 16, padding: 16, alignItems: 'center',
+    marginTop: 10, marginBottom: 30,
+  },
   kaydetYazi: { fontSize: 16, fontWeight: '800', color: '#fff', letterSpacing: 0.5 },
 
   // Pro Modal
   proModalArkaPlan: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'flex-end',
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end',
   },
   proModalKutu: {
     backgroundColor: COLORS.surface, borderTopLeftRadius: 28,
