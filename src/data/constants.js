@@ -1,6 +1,6 @@
 // Reçber - Sabit Değerler
 
-// --- YEM TİPLERİ ---
+// --- YEM TİPLERİ (Besi) ---
 export const YEM_TIPLERI = [
   { id: 'arpa',     label: 'Arpa',      icon: 'barley',       renk: '#C9A84C' },
   { id: 'saman',    label: 'Saman',     icon: 'hay-bale',     renk: '#E8C96A' },
@@ -8,6 +8,33 @@ export const YEM_TIPLERI = [
   { id: 'besiYemi', label: 'Besi Yemi', icon: 'food-variant', renk: '#3D5A3E' },
   { id: 'yonca',    label: 'Yonca',     icon: 'leaf',         renk: '#2ECC71' },
   { id: 'misir',    label: 'Mısır',     icon: 'corn',         renk: '#F39C12' },
+];
+
+// --- KÜMES YEM TİPLERİ ---
+export const KUMES_YEM_TIPLERI = [
+  { id: 'yemlik',   label: 'Yemlik',     icon: 'food-variant', renk: '#E67E22' },
+  { id: 'misir',    label: 'Mısır',      icon: 'corn',         renk: '#F39C12' },
+  { id: 'bugday',   label: 'Buğday',     icon: 'barley',       renk: '#C9A84C' },
+  { id: 'kepek',    label: 'Kepek',      icon: 'grain',        renk: '#A0522D' },
+  { id: 'ayckabi',  label: 'Ay Çekirdeği', icon: 'flower',    renk: '#DAA520' },
+  { id: 'diger',    label: 'Diğer',      icon: 'dots-horizontal', renk: '#95A5A6' },
+];
+
+// --- KÜMES TİPLERİ ---
+export const KUMES_TIPLERI = [
+  { id: 'yumurta', label: 'Yumurta Tavuğu', icon: 'egg',        renk: '#E67E22' },
+  { id: 'etlik',   label: 'Etlik Piliç',    icon: 'food-drumstick', renk: '#C0392B' },
+  { id: 'karisik', label: 'Karışık',        icon: 'bird',       renk: '#8E44AD' },
+];
+
+// --- KÜMES IRK LİSTESİ ---
+export const KUMES_IRK_LISTESI = [
+  { id: 'lohmann',  label: 'Lohmann Brown' },
+  { id: 'isa',      label: 'ISA Brown' },
+  { id: 'ross',     label: 'Ross 308 (Et)' },
+  { id: 'cobb',     label: 'Cobb 500 (Et)' },
+  { id: 'koy',      label: 'Köy Tavuğu' },
+  { id: 'diger',    label: 'Diğer' },
 ];
 
 // --- SAĞLIK BELİRTİLERİ ---
@@ -31,7 +58,7 @@ export const ASI_TURLERI = [
   'Diğer',
 ];
 
-// --- GCAA SINIRLAR (genel, ırk bilgisi yoksa kullanılır) ---
+// --- GCAA SINIRLAR ---
 export const GCAA_SINIRLAR = {
   dusuk: 1.0,
   orta: 1.5,
@@ -56,8 +83,6 @@ export const IRK_LISTESI = [
 ];
 
 // --- IRK PERFORMANS TABLOSU ---
-// Yaş aralığına göre beklenen GCAA (kg/gün) değerleri
-// Bu değerler pratik referans amaçlıdır, kesin veterinerlik hükmü değildir.
 export const IRK_PERFORMANS_TABLOSU = {
   simental: {
     ad: 'Simental',
@@ -117,7 +142,7 @@ export const IRK_PERFORMANS_TABLOSU = {
   },
 };
 
-// --- SATIŞ DURUMu ---
+// --- SATIŞ DURUMU ---
 export const SATIS_DURUM = {
   aktif:   { label: 'Beside',  renk: '#3D5A3E', icon: 'clock-outline' },
   satildi: { label: 'Satıldı', renk: '#6B7280', icon: 'check-circle'  },
@@ -138,6 +163,13 @@ export const MODULLER = {
     aciklama: 'Süt İneği & Laktasyon Takibi',
     icon: 'cow',
     renk: '#1A5276',
+  },
+  kumes: {
+    id: 'kumes',
+    label: 'Kümes',
+    aciklama: 'Tavuk & Yumurta Takibi',
+    icon: 'bird',
+    renk: '#A0522D',
   },
 };
 
@@ -174,6 +206,12 @@ export const STORAGE_KEYS = {
   aktifModul:       '@recber_modul',
   ayarlar:          '@recber_ayarlar',
   pro:              '@recber_pro',
+  // Kümes
+  kumesGruplar:     '@recber_kumes_gruplar',
+  kumesYumurta:     '@recber_kumes_yumurta',
+  kumesYemAlim:     '@recber_kumes_yem',
+  kumesSatis:       '@recber_kumes_satis',
+  kumesKayip:       '@recber_kumes_kayip',
 };
 
 // --- UYGULAMA SABİTLERİ ---
@@ -182,6 +220,7 @@ export const APP = {
   versiyon:      '1.0.0',
   besiBolumu:    'Besi',
   suruBolumu:    'Sürü',
-  ucretsizLimit: 2,      // ücretsiz max hayvan sayısı
-  proFiyat:      499,    // TL
+  kumesBolumu:   'Kümes',
+  ucretsizLimit: 2,
+  proFiyat:      499,
 };
