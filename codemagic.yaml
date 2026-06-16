@@ -2,29 +2,43 @@ workflows:
   android-release:
     name: Recber Android Build
     max_build_duration: 60
+
     environment:
       groups:
-        - gayit
+        - recber
       node: 18.18.0
+
     scripts:
       - name: Install dependencies
-        script: npm install --legacy-peer-deps
+        script: |
+          npm install --legacy-peer-deps
+
       - name: Expo prebuild
         script: |
           npx expo prebuild --clean --platform android
-          sed -i '' '/enableBundleCompression/d' android/app/build.gradle
+          sed -i '' '/enableBundleCompression/d' android/app/build.gradle || true
+
       - name: Build Android APK
         script: |
           cd android
           ./gradlew assembleRelease
+
       - name: Sign APK
         script: |
+          echo "$CM_KEYSTORE" | base64 --decode > /tmp/keystore.jks
+
           cd android/app/build/outputs/apk/release
+
           jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-            -keystore $CM_KEYSTORE -storepass $CM_KEYSTORE_PASSWORD \
-            -keypass $CM_KEY_PASSWORD app-release-unsigned.apk $CM_KEY_ALIAS
+            -keystore /tmp/keystore.jks \
+            -storepass "$CM_KEYSTORE_PASSWORD" \
+            -keypass "$CM_KEY_PASSWORD" \
+            app-release-unsigned.apk \
+            "$CM_KEY_ALIAS"
+
     artifacts:
       - android/app/build/outputs/apk/release/*.apk
+
     publishing:
       email:
         recipients:
