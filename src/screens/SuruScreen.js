@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { sutLimitAsildi, getProLimitMesaji } from '../utils/proLimits';
 
 import HeaderBar from '../components/HeaderBar';
 import COLORS from '../theme/colors';
@@ -61,18 +62,39 @@ export default function SuruScreen({ navigation }) {
     await veriYukle();
     setYenileniyor(false);
   };
+// ─── HAYVAN MODAL AÇ ──────────────────────────────────────────
+const handleHayvanModalAc = () => {
+  if (sutLimitAsildi(hayvanlar.length)) {
+    Alert.alert(
+      'Reçber Pro Gerekli',
+      getProLimitMesaji('sut')
+    );
+    return;
+  }
 
-  // ─── HAYVAN EKLE ──────────────────────────────────────────────
-  const handleHayvanEkle = async () => {
-    if (!hayvanForm.isim) {
-      Alert.alert('Eksik Bilgi', 'İsim zorunludur.');
-      return;
-    }
-    await suruHayvanEkle(hayvanForm);
-    setHayvanModal(false);
-    setHayvanForm(BOŞ_HAYVAN);
-    veriYukle();
-  };
+  setHayvanModal(true);
+};
+  
+// ─── HAYVAN EKLE ──────────────────────────────────────────────
+const handleHayvanEkle = async () => {
+  if (sutLimitAsildi(hayvanlar.length)) {
+    Alert.alert(
+      'Reçber Pro Gerekli',
+      getProLimitMesaji('sut')
+    );
+    return;
+  }
+
+  if (!hayvanForm.isim) {
+    Alert.alert('Eksik Bilgi', 'İsim zorunludur.');
+    return;
+  }
+
+  await suruHayvanEkle(hayvanForm);
+  setHayvanModal(false);
+  setHayvanForm(BOŞ_HAYVAN);
+  veriYukle();
+};
 
   // ─── SÜT KAYDET ───────────────────────────────────────────────
   const handleSutKaydet = async () => {
@@ -216,7 +238,7 @@ export default function SuruScreen({ navigation }) {
           <View>
             <TouchableOpacity
               style={[styles.ekleButon, { backgroundColor: SURU_RENK }]}
-              onPress={() => setHayvanModal(true)}
+              onPress={handleHayvanModalAc}
             >
               <MaterialCommunityIcons name="plus" size={18} color="#fff" />
               <Text style={styles.ekleButonYazi}>İnek Ekle</Text>
@@ -227,7 +249,7 @@ export default function SuruScreen({ navigation }) {
                 ikon="cow-off"
                 mesaj="Henüz sürüde inek yok"
                 butonYazi="İnek Ekle"
-                onPress={() => setHayvanModal(true)}
+                onPress={handleHayvanModalAc}
                 renk={SURU_RENK}
               />
             ) : (
