@@ -476,6 +476,34 @@ export const modulYemKullanimlari = async (modul, hedefId = null) => {
   });
 };
 
+export const getAmbarStokOzeti = async (kategori = null) => {
+  const yemler = await getAmbarYemleri();
+
+  const filtreliYemler = kategori
+    ? yemler.filter((yem) => yem.kategori === kategori || yem.kategori === 'genel')
+    : yemler;
+
+  const toplamKg = filtreliYemler.reduce(
+    (acc, yem) => acc + parseFloat(yem.kalanKg || 0),
+    0
+  );
+
+  const toplamDeger = filtreliYemler.reduce(
+    (acc, yem) =>
+      acc +
+      parseFloat(yem.kalanKg || 0) * parseFloat(yem.kgMaliyet || 0),
+    0
+  );
+
+  return {
+    yemler: filtreliYemler,
+    toplamKg,
+    toplamDeger,
+  };
+};
+
+// ─── AYARLAR ──────────────────────────────────────────────────────
+
 // ─── AYARLAR ──────────────────────────────────────────────────────
 
 export const getAyarlar = async () => {
