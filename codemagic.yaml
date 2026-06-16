@@ -12,7 +12,7 @@ workflows:
       - name: Expo prebuild
         script: |
           npx expo prebuild --clean --platform android
-          sed -i '/enableBundleCompression/d' android/app/build.gradle
+          sed -i '' '/enableBundleCompression/d' android/app/build.gradle
       - name: Build Android APK
         script: |
           cd android
