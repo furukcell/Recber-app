@@ -279,6 +279,17 @@ export default function AyarlarScreen({ navigation, onModulDegis }) {
           </Text>
         </View>
 
+         {/* Ambar */}
+        <AyarGrubu baslik="AMBAR">
+         <AyarSatir
+             ikon="barn"
+             baslik="Ambar / Yem Stokları"
+             alt="Besi, süt ve kümes yemlerini ortak takip et"
+             renk="#8E5A2A"
+             onPress={() => navigation.navigate('Ambar')}
+          />
+         </AyarGrubu>
+
         {/* Hakkında */}
         <AyarGrubu baslik="HAKKINDA">
           <AyarSatir
