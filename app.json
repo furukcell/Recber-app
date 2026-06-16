@@ -12,10 +12,13 @@
       }
     },
     "android": {
-      "package": "com.faruk.besidana",
-      "versionCode": 1,
-      "permissions": []
-    },
+  "package": "com.faruk.besidana",
+  "versionCode": 1,
+  "permissions": [],
+  "compileSdkVersion": 35,
+  "targetSdkVersion": 35,
+  "minSdkVersion": 24
+},
     "plugins": [
       "expo-document-picker",
       "expo-file-system"
