@@ -20,6 +20,14 @@ import {
 } from '../data/storage';
 import { APP, STORAGE_KEYS, VARSAYILAN_FIYATLAR } from '../data/constants';
 
+const KUMES_RENK = '#A0522D';
+
+const MODUL_BILGI = {
+  besi:  { label: 'Besi',  emoji: '🐄', renk: COLORS.besi, altYazi: 'Besi — Dana & Boğa Takibi',     rozetYazi: 'BESİ' },
+  suru:  { label: 'Sürü',  emoji: '🥛', renk: COLORS.suru, altYazi: 'Sürü — Süt İneği Takibi',        rozetYazi: 'SÜRÜ' },
+  kumes: { label: 'Kümes', emoji: '🐔', renk: KUMES_RENK,  altYazi: 'Kümes — Tavuk & Yumurta Takibi', rozetYazi: 'KÜMES' },
+};
+
 export default function AyarlarScreen(props) {
   const [aktifModul, setModul] = useState('besi');
   const [isPro, setIsPro] = useState(false);
@@ -37,27 +45,25 @@ export default function AyarlarScreen(props) {
 
   useFocusEffect(useCallback(() => { veriYukle(); }, []));
 
-  const modulRenk = aktifModul === 'besi' ? COLORS.besi : COLORS.suru;
+  const modulBilgi = MODUL_BILGI[aktifModul] || MODUL_BILGI.besi;
+  const modulRenk = modulBilgi.renk;
 
   // ─── MODÜL DEĞİŞTİR ───────────────────────────────────────────
   const handleModulDegistir = () => {
-  Alert.alert(
-    'Modül Değiştir',
-    'Hangi modüle geçmek istiyorsunuz?',
-    [
-      {
-        text: aktifModul === 'besi' ? '🥛 Sürü Modülüne Geç' : '🐄 Besi Modülüne Geç',
-        onPress: async () => {
-          const yeni = aktifModul === 'besi' ? 'suru' : 'besi';
-          await setAktifModul(yeni);
-          setModul(yeni);
-          if (props.onModulDegis) props.onModulDegis(yeni);
-        },
+    const digerModuller = Object.keys(MODUL_BILGI).filter(m => m !== aktifModul);
+
+    const butonlar = digerModuller.map(m => ({
+      text: `${MODUL_BILGI[m].emoji} ${MODUL_BILGI[m].label} Modülüne Geç`,
+      onPress: async () => {
+        await setAktifModul(m);
+        setModul(m);
+        if (props.onModulDegis) props.onModulDegis(m);
       },
-      { text: 'İptal', style: 'cancel' },
-    ]
-  );
-};
+    }));
+    butonlar.push({ text: 'İptal', style: 'cancel' });
+
+    Alert.alert('Modül Değiştir', 'Hangi modüle geçmek istiyorsunuz?', butonlar);
+  };
 
   // ─── AYAR KAYDET ──────────────────────────────────────────────
   const handleAyarKaydet = async (yeniAyarlar) => {
@@ -181,12 +187,12 @@ export default function AyarlarScreen(props) {
 
         {/* Uygulama Bilgisi */}
         <View style={styles.uygulamaKart}>
-          <Text style={styles.uygulamaLogo}>🐄</Text>
+          <Text style={styles.uygulamaLogo}>{modulBilgi.emoji}</Text>
           <Text style={styles.uygulamaAd}>{APP.isim}</Text>
           <Text style={styles.uygulamaVersiyon}>Versiyon {APP.versiyon}</Text>
           <View style={[styles.modulRozet, { backgroundColor: modulRenk }]}>
             <Text style={styles.modulRozetYazi}>
-              {aktifModul === 'besi' ? '🐄 BESİ MODU' : '🥛 SÜRÜ MODU'}
+              {modulBilgi.emoji} {modulBilgi.label.toUpperCase()} MODU
             </Text>
           </View>
           {isPro && (
@@ -201,41 +207,41 @@ export default function AyarlarScreen(props) {
           <AyarSatir
             ikon="swap-horizontal"
             baslik="Aktif Modül"
-            alt={aktifModul === 'besi' ? 'Besi — Dana & Boğa Takibi' : 'Sürü — Süt İneği Takibi'}
+            alt={modulBilgi.altYazi}
             renk={modulRenk}
             onPress={handleModulDegistir}
             sag={
               <View style={[styles.kucukRozet, { backgroundColor: modulRenk }]}>
-                <Text style={styles.kucukRozetYazi}>
-                  {aktifModul === 'besi' ? 'BESİ' : 'SÜRÜ'}
-                </Text>
+                <Text style={styles.kucukRozetYazi}>{modulBilgi.rozetYazi}</Text>
               </View>
             }
           />
         </AyarGrubu>
 
-        {/* Fiyat Ayarları */}
-        <AyarGrubu baslik="FİYAT AYARLARI">
-          <FiyatInput
-            label="Canlı kg Fiyatı (TL)"
-            value={ayarlar.canliKgFiyat?.toString()}
-            onChange={(v) => handleAyarKaydet({ canliKgFiyat: parseFloat(v) || 0 })}
-            renk={modulRenk}
-          />
-          <FiyatInput
-            label="Karkas kg Fiyatı (TL)"
-            value={ayarlar.karkasKgFiyat?.toString()}
-            onChange={(v) => handleAyarKaydet({ karkasKgFiyat: parseFloat(v) || 0 })}
-            renk={modulRenk}
-          />
-          <FiyatInput
-            label="Randıman Oranı (0.50 - 0.65)"
-            value={ayarlar.randimanOrani?.toString()}
-            onChange={(v) => handleAyarKaydet({ randimanOrani: parseFloat(v) || 0.55 })}
-            renk={modulRenk}
-            klavye="decimal-pad"
-          />
-        </AyarGrubu>
+        {/* Fiyat Ayarları — sadece Besi/Sürü modunda anlamlı */}
+        {aktifModul !== 'kumes' && (
+          <AyarGrubu baslik="FİYAT AYARLARI">
+            <FiyatInput
+              label="Canlı kg Fiyatı (TL)"
+              value={ayarlar.canliKgFiyat?.toString()}
+              onChange={(v) => handleAyarKaydet({ canliKgFiyat: parseFloat(v) || 0 })}
+              renk={modulRenk}
+            />
+            <FiyatInput
+              label="Karkas kg Fiyatı (TL)"
+              value={ayarlar.karkasKgFiyat?.toString()}
+              onChange={(v) => handleAyarKaydet({ karkasKgFiyat: parseFloat(v) || 0 })}
+              renk={modulRenk}
+            />
+            <FiyatInput
+              label="Randıman Oranı (0.50 - 0.65)"
+              value={ayarlar.randimanOrani?.toString()}
+              onChange={(v) => handleAyarKaydet({ randimanOrani: parseFloat(v) || 0.55 })}
+              renk={modulRenk}
+              klavye="decimal-pad"
+            />
+          </AyarGrubu>
+        )}
 
         {/* Veri Yönetimi */}
         <AyarGrubu baslik="VERİ YÖNETİMİ">
@@ -284,12 +290,12 @@ export default function AyarlarScreen(props) {
           <AyarSatir
             ikon="information-outline"
             baslik="Uygulama Hakkında"
-            alt={`Reçber v${APP.versiyon} — Besi & Süt Çiftliği Yönetimi`}
+            alt={`Reçber v${APP.versiyon} — Besi, Sürü & Kümes Yönetimi`}
             renk={modulRenk}
             onPress={() =>
               Alert.alert(
                 'Reçber',
-                `Versiyon ${APP.versiyon}\n\nBesi & Süt Çiftliği Yönetim Uygulaması\n\nTüm veriler cihazınızda saklanır.\nİnternet bağlantısı gerekmez.`
+                `Versiyon ${APP.versiyon}\n\nBesi, Süt & Kümes Çiftliği Yönetim Uygulaması\n\nTüm veriler cihazınızda saklanır.\nİnternet bağlantısı gerekmez.`
               )
             }
           />
