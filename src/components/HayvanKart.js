@@ -1,11 +1,11 @@
 // Reçber - HayvanKart Component
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import COLORS from '../theme/colors';
 import { GCAA_SINIRLAR, GCAA_RENKLER } from '../data/constants';
 
-export default function HayvanKart({ hayvan, onPress, modulRenk }) {
+export default function HayvanKart({ hayvan, onPress, onDuzenle, onSil, modulRenk }) {
   const renk = modulRenk || COLORS.primary;
 
   const gunHesapla = () => {
@@ -37,12 +37,45 @@ export default function HayvanKart({ hayvan, onPress, modulRenk }) {
     return 'Sağlıklı ✅';
   };
 
+  const handleLongPress = () => {
+    // Satılmış hayvanda sadece sil seçeneği çıksın
+    const butonlar = hayvan.satildiMi
+      ? [
+          { text: 'İptal', style: 'cancel' },
+          {
+            text: '🗑️ Sil',
+            style: 'destructive',
+            onPress: () => onSil && onSil(hayvan),
+          },
+        ]
+      : [
+          { text: 'İptal', style: 'cancel' },
+          {
+            text: '✏️ Düzenle',
+            onPress: () => onDuzenle && onDuzenle(hayvan),
+          },
+          {
+            text: '🗑️ Sil',
+            style: 'destructive',
+            onPress: () => onSil && onSil(hayvan),
+          },
+        ];
+
+    Alert.alert(hayvan.isim || 'Hayvan', 'Ne yapmak istiyorsunuz?', butonlar);
+  };
+
   const gun = gunHesapla();
   const gcaa = gcaaHesapla();
   const kgFark = parseFloat(hayvan.guncelKilo || 0) - parseFloat(hayvan.alisKilo || 0);
 
   return (
-    <TouchableOpacity style={styles.kart} onPress={onPress} activeOpacity={0.85}>
+    <TouchableOpacity
+      style={styles.kart}
+      onPress={onPress}
+      onLongPress={handleLongPress}
+      delayLongPress={400}
+      activeOpacity={0.85}
+    >
       {/* Üst: İkon + İsim + Sağlık */}
       <View style={styles.ust}>
         <View style={[styles.ikonKutu, { backgroundColor: renk }]}>
@@ -52,8 +85,17 @@ export default function HayvanKart({ hayvan, onPress, modulRenk }) {
           <Text style={styles.isim}>{hayvan.isim || hayvan.no || 'İsimsiz'}</Text>
           <Text style={styles.kupe}>{hayvan.kupeNo || hayvan.kupe || '-'}</Text>
         </View>
-        <View style={[styles.saglikRozet, { backgroundColor: saglikRenk() + '20', borderColor: saglikRenk() }]}>
-          <Text style={[styles.saglikYazi, { color: saglikRenk() }]}>{saglikYazi()}</Text>
+        <View style={styles.sagHizala}>
+          <View style={[styles.saglikRozet, { backgroundColor: saglikRenk() + '20', borderColor: saglikRenk() }]}>
+            <Text style={[styles.saglikYazi, { color: saglikRenk() }]}>{saglikYazi()}</Text>
+          </View>
+          {/* Long-press ipucu ikonu */}
+          <MaterialCommunityIcons
+            name="dots-vertical"
+            size={18}
+            color={COLORS.textLight}
+            style={{ marginTop: 4 }}
+          />
         </View>
       </View>
 
@@ -61,11 +103,16 @@ export default function HayvanKart({ hayvan, onPress, modulRenk }) {
       <View style={styles.metrikSatir}>
         <Metrik baslik="Besi Günü" deger={`${gun}`} birim="gün" renk={renk} />
         <Metrik baslik="Güncel Kilo" deger={hayvan.guncelKilo || '-'} birim="kg" renk={renk} />
-        <Metrik baslik="Alınan" deger={kgFark >= 0 ? `+${kgFark.toFixed(0)}` : kgFark.toFixed(0)} birim="kg" renk={kgFark >= 0 ? COLORS.success : COLORS.danger} />
+        <Metrik
+          baslik="Alınan"
+          deger={kgFark >= 0 ? `+${kgFark.toFixed(0)}` : kgFark.toFixed(0)}
+          birim="kg"
+          renk={kgFark >= 0 ? COLORS.success : COLORS.danger}
+        />
         <Metrik baslik="GCAA" deger={gcaa} birim="kg/g" renk={gcaaRenk(gcaa)} />
       </View>
 
-      {/* Satıldı rozeti */}
+      {/* Satıldı overlay */}
       {hayvan.satildiMi && (
         <View style={styles.satildiRozet}>
           <Text style={styles.satildiYazi}>SATILDI</Text>
@@ -109,6 +156,7 @@ const styles = StyleSheet.create({
   isimKisim: { flex: 1, marginLeft: 12 },
   isim: { fontSize: 17, fontWeight: '800', color: COLORS.textPrimary },
   kupe: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  sagHizala: { alignItems: 'flex-end', gap: 2 },
   saglikRozet: {
     paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: 20, borderWidth: 1,
@@ -130,5 +178,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.75)',
     borderRadius: 18, justifyContent: 'center', alignItems: 'center',
   },
-  satildiYazi: { fontSize: 20, fontWeight: '900', color: COLORS.textSecondary, letterSpacing: 3 },
+  satildiYazi: {
+    fontSize: 20, fontWeight: '900',
+    color: COLORS.textSecondary, letterSpacing: 3,
+  },
 });
