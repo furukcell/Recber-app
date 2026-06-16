@@ -7,8 +7,8 @@ workflows:
         - gayit
       node: 18.18.0
     scripts:
-      - name: Install dependencies
-        script: npm install
+      - - name: Install dependencies
+        script: npm install --legacy-peer-deps
       - name: Expo prebuild
         script: npx expo prebuild --clean --platform android
       - name: Build Android APK
