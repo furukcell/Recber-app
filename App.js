@@ -44,107 +44,101 @@ function HayvanlarStack() {
 // ─── BOTTOM TAB NAVIGATOR ─────────────────────────────────────────
 function MainTabs({ aktifModul, onModulDegis }) {
   const modulRenk =
-    aktifModul === 'besi' ? COLORS.besi :
-    aktifModul === 'suru' ? COLORS.suru :
-    KUMES_RENK;
+    aktifModul === 'besi'
+      ? COLORS.besi
+      : aktifModul === 'suru'
+      ? COLORS.suru
+      : KUMES_RENK;
 
- const ikonlar = {
-  'Ana Sayfa': 'view-dashboard-outline',
-  'Hayvanlar': 'cow',
-  'Sürü': 'cow',
-  'Süt Rapor': 'chart-bar',
-  'Yem': 'barley',
-  'Veteriner': 'medical-bag',
-  'Rapor': 'chart-line',
-  'Ayarlar': 'cog-outline',
-  'Kümes': 'bird',
-};
+  const ikonlar = {
+    'Ana Sayfa': 'home',
+    Hayvanlar: 'cow',
+    Yem: 'food-apple',
+    Veteriner: 'medical-bag',
+    Rapor: 'chart-line',
+    Ayarlar: 'cog-outline',
+    Kümes: 'bird',
+    Sürü: 'cow',
+    'Süt Rapor': 'chart-bar',
+  };
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: modulRenk,
-        tabBarInactiveTintColor: COLORS.textLight,
+        tabBarInactiveTintColor: '#999',
         tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 1,
           height: 62,
-          paddingBottom: 8,
+          paddingBottom: 6,
           paddingTop: 6,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
         },
         tabBarIcon: ({ color, size }) => (
           <MaterialCommunityIcons
-            name={ikonlar[route.name] || 'circle'}
-            size={24}
+            name={ikonlar[route.name] || 'circle-outline'}
+            size={size}
             color={color}
           />
         ),
       })}
     >
       {aktifModul === 'kumes' ? (
-  <>
-    <Tab.Screen name="Kümes" component={KumesScreen} />
+        <>
+          <Tab.Screen name="Kümes" component={KumesScreen} />
 
-    <Tab.Screen
-      name="Ayarlar"
-      children={(props) => (
-        <AyarlarScreen
-          {...props}
-          onModulDegis={onModulDegis}
-        />
-      )}
-    />
-  </>
-) : aktifModul === 'suru' ? (
-  <>
-   <Tab.Screen name="Sürü" component={SuruScreen} />
+          <Tab.Screen
+            name="Ayarlar"
+            children={(props) => (
+              <AyarlarScreen
+                {...props}
+                onModulDegis={onModulDegis}
+              />
+            )}
+          />
+        </>
+      ) : aktifModul === 'suru' ? (
+        <>
+          <Tab.Screen name="Sürü" component={SuruScreen} />
 
-     <Tab.Screen name="Süt Rapor" component={SuruRaporScreen} />
+          <Tab.Screen name="Süt Rapor" component={SuruRaporScreen} />
 
-     <Tab.Screen
-     name="Ayarlar"
-     children={(props) => (
-     <AyarlarScreen
-      {...props}
-      onModulDegis={onModulDegis}
-        />
-      )}
-     />
-  </>
-) : (
-  <>
-    <Tab.Screen
-      name="Ana Sayfa"
-      component={HomeScreen}
-      initialParams={{ aktifModul }}
-    />
+          <Tab.Screen
+            name="Ayarlar"
+            children={(props) => (
+              <AyarlarScreen
+                {...props}
+                onModulDegis={onModulDegis}
+              />
+            )}
+          />
+        </>
+      ) : (
+        <>
+          <Tab.Screen
+            name="Ana Sayfa"
+            component={HomeScreen}
+            initialParams={{ aktifModul }}
+          />
 
-    <Tab.Screen
-      name="Hayvanlar"
-      component={HayvanlarStack}
-    />
+          <Tab.Screen
+            name="Hayvanlar"
+            component={HayvanlarStack}
+          />
 
-    <Tab.Screen name="Yem" component={YemScreen} />
-    <Tab.Screen name="Veteriner" component={VeterinerScreen} />
-    <Tab.Screen name="Rapor" component={RaporScreen} />
+          <Tab.Screen name="Yem" component={YemScreen} />
 
-    <Tab.Screen
-      name="Ayarlar"
-      children={(props) => (
-        <AyarlarScreen
-          {...props}
-          onModulDegis={onModulDegis}
-        />
-      )}
-    />
-  </>
-)}
+          <Tab.Screen name="Veteriner" component={VeterinerScreen} />
+
+          <Tab.Screen name="Rapor" component={RaporScreen} />
+
+          <Tab.Screen
+            name="Ayarlar"
+            children={(props) => (
+              <AyarlarScreen
+                {...props}
+                onModulDegis={onModulDegis}
+              />
+            )}
           />
         </>
       )}
