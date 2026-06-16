@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { besiLimitAsildi } from '../utils/proLimits';
 
 import HeaderBar from '../components/HeaderBar';
 import HayvanKart from '../components/HayvanKart';
@@ -61,14 +62,15 @@ export default function HayvanlarScreen({ navigation }) {
   const aktifSayisi = hayvanlar.filter(h => !h.satildiMi).length;
   const modulRenk = aktifModul === 'besi' ? COLORS.besi : COLORS.suru;
 
-  // ─── HAYVAN EKLE ──────────────────────────────────────────────
-  const handleEkleBasin = () => {
-    if (!isPro && aktifSayisi >= APP.ucretsizLimit) {
-      setProModal(true);
-      return;
-    }
-    setEkleModal(true);
-  };
+ // ─── HAYVAN EKLE ──────────────────────────────────────────────
+const handleEkleBasin = () => {
+  if (besiLimitAsildi(aktifSayisi)) {
+    setProModal(true);
+    return;
+  }
+
+  setEkleModal(true);
+};
 
   const handleEkle = async () => {
     if (!form.isim || !form.alisKilo) {
