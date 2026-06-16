@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { kumesLimitAsildi, getProLimitMesaji } from '../utils/proLimits';
 
 import HeaderBar from '../components/HeaderBar';
 import COLORS from '../theme/colors';
@@ -98,22 +99,38 @@ export default function KumesScreen() {
   };
 
   const aktifGruplar = gruplar.filter(g => g.aktifMi);
+  const toplamAktifTavukSayisi = aktifGruplar.reduce(
+  (toplam, grup) => toplam + Number(grup.mevcutSayi || 0),
+  0
+);
 
-  // ─── GRUP EKLE ────────────────────────────────────────────────
-  const handleGrupEkle = async () => {
-    if (!grupForm.isim || !grupForm.baslangicSayi) {
-      Alert.alert('Eksik', 'Grup adı ve başlangıç sayısı zorunludur.');
-      return;
-    }
-    const yeni = {
-      ...grupForm,
-      mevcutSayi: grupForm.baslangicSayi,
-    };
-    await kumesGrupEkle(yeni);
-    setGrupEkleModal(false);
-    setGrupForm(BOŞ_GRUP);
-    veriYukle();
+   // ─── GRUP EKLE ─────────────────────────────────────────
+const handleGrupEkle = async () => {
+  if (!grupForm.isim || !grupForm.baslangicSayisi) {
+    Alert.alert('Eksik', 'Grup adı ve başlangıç sayısı zorunludur.');
+    return;
+  }
+
+  const eklenecekTavukSayisi = Number(grupForm.baslangicSayisi || 0);
+
+  if (kumesLimitAsildi(toplamAktifTavukSayisi, eklenecekTavukSayisi)) {
+    Alert.alert(
+      'Reçber Pro Gerekli',
+      getProLimitMesaji('kumes')
+    );
+    return;
+  }
+
+  const yeni = {
+    ...grupForm,
+    mevcutSayi: grupForm.baslangicSayisi,
   };
+
+  await kumesGrupEkle(yeni);
+  setGrupEkleModal(false);
+  setGrupForm(BOŞ_GRUP);
+  veriYukle();
+};
 
   // ─── GRUP DÜZENLE ─────────────────────────────────────────────
   const handleGrupDuzenleBasin = (grup) => {
@@ -132,17 +149,33 @@ export default function KumesScreen() {
   };
 
   const handleGrupDuzenleKaydet = async () => {
-    if (!grupForm.isim || !grupForm.mevcutSayi) {
-      Alert.alert('Eksik', 'Grup adı ve mevcut sayı zorunludur.');
-      return;
-    }
-    await kumesGrupGuncelle(duzenleId, grupForm);
-    setGrupDuzenleModal(false);
-    setDuzenleId(null);
-    setGrupForm(BOŞ_GRUP);
-    veriYukle();
-    Alert.alert('Kaydedildi ✅', 'Grup bilgileri güncellendi.');
-  };
+  if (!grupForm.isim || !grupForm.mevcutSayi) {
+    Alert.alert('Eksik', 'Grup adı ve mevcut sayı zorunludur.');
+    return;
+  }
+
+  const eskiGrup = gruplar.find(g => g.id === duzenleId);
+  const eskiSayi = Number(eskiGrup?.mevcutSayi || 0);
+  const yeniSayi = Number(grupForm.mevcutSayi || 0);
+
+  const duzenlemeSonrasiToplam =
+    toplamAktifTavukSayisi - eskiSayi + yeniSayi;
+
+  if (kumesLimitAsildi(0, duzenlemeSonrasiToplam)) {
+    Alert.alert(
+      'Reçber Pro Gerekli',
+      getProLimitMesaji('kumes')
+    );
+    return;
+  }
+
+  await kumesGrupGuncelle(duzenleId, grupForm);
+  setGrupDuzenleModal(false);
+  setDuzenleId(null);
+  setGrupForm(BOŞ_GRUP);
+  veriYukle();
+  Alert.alert('Kaydedildi ✅', 'Grup bilgileri güncellendi.');
+};
 
   const handleGrupSil = (grup) => {
     Alert.alert(
