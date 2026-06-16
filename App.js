@@ -16,6 +16,7 @@ import RaporScreen from './src/screens/RaporScreen';
 import AyarlarScreen from './src/screens/AyarlarScreen';
 import SuruScreen from './src/screens/SuruScreen';
 import KumesScreen from './src/screens/KumesScreen';
+import HakkimizdaScreen from './src/screens/HakkimizdaScreen';
 
 // Theme
 import COLORS from './src/theme/colors';
@@ -86,8 +87,14 @@ function MainTabs({ aktifModul, onModulDegis }) {
         <>
           <Tab.Screen name="Kümes" component={KumesScreen} />
           <Tab.Screen
-            name="Ayarlar"
-            children={() => <AyarlarScreen onModulDegis={onModulDegis} />}
+          name="Ayarlar"
+          children={(props) => (
+         <AyarlarScreen
+             {...props}
+         onModulDegis={onModulDegis}
+       />
+      )}
+    />
           />
         </>
       ) : (
@@ -108,8 +115,14 @@ function MainTabs({ aktifModul, onModulDegis }) {
           <Tab.Screen name="Veteriner" component={VeterinerScreen} />
           <Tab.Screen name="Rapor" component={RaporScreen} />
           <Tab.Screen
-            name="Ayarlar"
-            children={() => <AyarlarScreen onModulDegis={onModulDegis} />}
+          name="Ayarlar"
+          children={(props) => (
+          <AyarlarScreen
+               {...props}
+          onModulDegis={onModulDegis}
+       />
+     )}
+   />
           />
         </>
       )}
@@ -225,15 +238,33 @@ export default function App() {
     );
   }
 
-  return (
-    <NavigationContainer>
+ return (
+  <NavigationContainer>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!aktifModul ? (
-        <ModulSecimEkrani onSecim={handleModulSecim} />
+        <Stack.Screen name="ModulSecim">
+          {() => <ModulSecimEkrani onSecim={handleModulSecim} />}
+        </Stack.Screen>
       ) : (
-        <MainTabs aktifModul={aktifModul} onModulDegis={handleModulSecim} />
+        <>
+          <Stack.Screen name="MainTabs">
+            {() => (
+              <MainTabs
+                aktifModul={aktifModul}
+                onModulDegis={handleModulSecim}
+              />
+            )}
+          </Stack.Screen>
+
+          <Stack.Screen
+            name="Hakkimizda"
+            component={HakkimizdaScreen}
+          />
+        </>
       )}
-    </NavigationContainer>
-  );
+    </Stack.Navigator>
+  </NavigationContainer>
+);
 }
 
 // ─── STİLLER ──────────────────────────────────────────────────────
