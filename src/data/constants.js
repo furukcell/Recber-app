@@ -193,6 +193,19 @@ export const VARSAYILAN_FIYATLAR = {
   randimanOrani: 0.55,
 };
 
+// --- RASYON SİSTEMİ ────────────────────────────────────────────
+// Grup rasyonu: modül geneli tek sabit grup (kullanıcı kendi grup
+// oluşturmuyor, "Tüm Besi" / "Tüm Laktasyondaki İnekler" şeklinde).
+export const RASYON_GRUP_ID = {
+  besi: 'tum_besi',
+  sut:  'tum_laktasyon',
+};
+
+export const RASYON_GRUP_AD = {
+  besi: 'Tüm Besi Hayvanları',
+  sut:  'Tüm Laktasyondaki İnekler',
+};
+
 // --- STORAGE KEY'LERİ ---
 export const STORAGE_KEYS = {
   hayvanlar:        '@recber_hayvanlar',
@@ -209,6 +222,9 @@ export const STORAGE_KEYS = {
   // Ortak Ambar / Yem Stok
   ambarYemleri:     '@recber_ambar_yemleri',
   yemKullanimlari:  '@recber_yem_kullanimlari',
+
+  // Rasyon Sistemi (otomatik günlük yem düşümü)
+  rasyonlar:        '@recber_rasyonlar',
 
   // Genel
   aktifModul:       '@recber_modul',

@@ -502,7 +502,239 @@ export const getAmbarStokOzeti = async (kategori = null) => {
   };
 };
 
-// ─── AYARLAR ──────────────────────────────────────────────────────
+// ─── RASYON SİSTEMİ ───────────────────────────────────────────────
+// Günlük yem girişi yerine: bir hayvana veya gruba "günlük rasyon" tanımlanır.
+// Uygulama her açıldığında (rasyonlariUygula), son hesaplanan tarihten bugüne
+// kaç gün geçtiğini bulur, o kadar günü rasyon kalemleriyle çarpıp Ambar'dan
+// otomatik düşer. Kullanıcı her gün elle yem girmek zorunda kalmaz.
+//
+// Rasyon kaydı şekli:
+// {
+//   id, modul: 'besi' | 'sut',
+//   kapsamTipi: 'hayvan' | 'grup',
+//   hedefId,          // hayvan.id veya grup sabiti (örn. 'tum_besi')
+//   hedefAd,
+//   kalemler: [{ yemId, yemAdi, gunlukKg }],
+//   baslangicTarihi,      // ISO - rasyon ilk tanımlandığı tarih
+//   sonHesaplananTarih,   // ISO - otomatik düşümün en son işlendiği tarih
+//   aktifMi, bitisTarihi
+// }
+
+export const getRasyonlar = () => getItem(STORAGE_KEYS.rasyonlar);
+
+export const saveRasyonlar = (liste) => setItem(STORAGE_KEYS.rasyonlar, liste);
+
+// Bir hedef (hayvan veya grup) için o modüldeki aktif rasyonu bulur
+export const hedefinAktifRasyonu = async (modul, hedefId) => {
+  const liste = await getRasyonlar();
+  return (
+    liste.find((r) => r.modul === modul && r.hedefId === hedefId && r.aktifMi) ||
+    null
+  );
+};
+
+// Bir hayvan için geçerli olacak rasyonu döner: önce bireysel rasyona bakar,
+// yoksa hayvanın bağlı olduğu grup rasyonuna döner.
+export const hayvaninGecerliRasyonu = async (modul, hayvanId, grupId) => {
+  const bireysel = await hedefinAktifRasyonu(modul, hayvanId);
+  if (bireysel) return bireysel;
+  if (grupId) return hedefinAktifRasyonu(modul, grupId);
+  return null;
+};
+
+// Yeni rasyon tanımlar / mevcut aktif rasyonu kapatıp yenisini açar.
+// Not: sonHesaplananTarih bugünden başlar — geçmişe dönük düşüm yapılmaz,
+// rasyon tanımlandığı günden itibaren işlemeye başlar.
+export const rasyonOlustur = async ({ modul, kapsamTipi, hedefId, hedefAd, kalemler }) => {
+  const liste = await getRasyonlar();
+  const bugunIso = new Date().toISOString();
+
+  // Aynı hedef + modül için açık rasyon varsa kapat
+  const guncellenmis = liste.map((r) => {
+    if (r.modul === modul && r.hedefId === hedefId && r.aktifMi) {
+      return { ...r, aktifMi: false, bitisTarihi: bugunIso };
+    }
+    return r;
+  });
+
+  const temizKalemler = (kalemler || [])
+    .filter((k) => k.yemId && parseFloat(k.gunlukKg) > 0)
+    .map((k) => ({
+      yemId: k.yemId,
+      yemAdi: k.yemAdi || '',
+      gunlukKg: parseFloat(k.gunlukKg),
+    }));
+
+  if (temizKalemler.length === 0) {
+    throw new Error('Rasyonda en az bir geçerli yem kalemi olmalı');
+  }
+
+  const yeniRasyon = {
+    id: generateId(),
+    modul,
+    kapsamTipi,
+    hedefId,
+    hedefAd,
+    kalemler: temizKalemler,
+    baslangicTarihi: bugunIso,
+    sonHesaplananTarih: bugunIso,
+    aktifMi: true,
+    bitisTarihi: null,
+    olusturmaTarihi: bugunIso,
+  };
+
+  guncellenmis.unshift(yeniRasyon);
+  await saveRasyonlar(guncellenmis);
+  return yeniRasyon;
+};
+
+// Mevcut aktif rasyonun kalemlerini günceller (tarihe dokunmaz).
+// Önemli: güncellemeden önce rasyonlariUygula() çağrılmalı, yoksa eski
+// miktarla geçen günler eksik/yanlış hesaplanabilir. UI tarafı bunu sağlar.
+export const rasyonGuncelle = async (id, kalemler) => {
+  const liste = await getRasyonlar();
+
+  const temizKalemler = (kalemler || [])
+    .filter((k) => k.yemId && parseFloat(k.gunlukKg) > 0)
+    .map((k) => ({
+      yemId: k.yemId,
+      yemAdi: k.yemAdi || '',
+      gunlukKg: parseFloat(k.gunlukKg),
+    }));
+
+  if (temizKalemler.length === 0) {
+    throw new Error('Rasyonda en az bir geçerli yem kalemi olmalı');
+  }
+
+  const yeni = liste.map((r) =>
+    r.id === id ? { ...r, kalemler: temizKalemler } : r
+  );
+  await saveRasyonlar(yeni);
+  return yeni.find((r) => r.id === id);
+};
+
+// Rasyonu manuel olarak sonlandırır (örn. hayvan satıldı / kuru döneme geçti)
+export const rasyonSonlandir = async (id) => {
+  const liste = await getRasyonlar();
+  const yeni = liste.map((r) =>
+    r.id === id ? { ...r, aktifMi: false, bitisTarihi: new Date().toISOString() } : r
+  );
+  await saveRasyonlar(yeni);
+  return yeni;
+};
+
+// İki ISO tarih arasındaki tam gün sayısı (gün başlangıcına göre, saat farkını yutar)
+function gunFarkiHesapla(eskiIso, yeniIso) {
+  const eski = new Date(eskiIso);
+  const yeni = new Date(yeniIso);
+
+  const eskiGun = new Date(eski.getFullYear(), eski.getMonth(), eski.getDate());
+  const yeniGun = new Date(yeni.getFullYear(), yeni.getMonth(), yeni.getDate());
+
+  const farkMs = yeniGun.getTime() - eskiGun.getTime();
+  return Math.max(Math.floor(farkMs / 86400000), 0);
+}
+
+// ─── OTOMATİK RASYON UYGULAMA ─────────────────────────────────────
+// Uygulama her açıldığında / ilgili ekranlara her girişte çağrılır.
+// Tüm aktif rasyonları gezer, geçen gün kadar yemi Ambar'dan düşer.
+// Stok yetmezse o kalemi kısmi uygular (yetebildiği kadar düşer) ve
+// uyarı listesine ekler; diğer kalemlere/rasyonlara devam eder.
+//
+// Dönüş: { uygulandi: [{rasyonId, hedefAd, gun, kalemler:[...]}], uyarilar: [string] }
+export const rasyonlariUygula = async () => {
+  const liste = await getRasyonlar();
+  const bugunIso = new Date().toISOString();
+
+  const uygulandi = [];
+  const uyarilar = [];
+  let degisenRasyonVar = false;
+
+  const guncelRasyonlar = [];
+
+  for (const rasyon of liste) {
+    if (!rasyon.aktifMi) {
+      guncelRasyonlar.push(rasyon);
+      continue;
+    }
+
+    const gunSayisi = gunFarkiHesapla(rasyon.sonHesaplananTarih, bugunIso);
+
+    if (gunSayisi <= 0) {
+      guncelRasyonlar.push(rasyon);
+      continue;
+    }
+
+    const uygulananKalemler = [];
+
+    for (const kalem of rasyon.kalemler) {
+      const hedefMiktar = kalem.gunlukKg * gunSayisi;
+
+      // Stoktaki mevcut durumu kontrol et (ambarYemKullan zaten miktar
+      // kontrolü yapıyor ama burada kısmi düşüm için kendimiz yönetiyoruz)
+      const yemler = await getAmbarYemleri();
+      const yem = yemler.find((y) => y.id === kalem.yemId);
+
+      if (!yem) {
+        uyarilar.push(
+          `${rasyon.hedefAd}: "${kalem.yemAdi}" Ambar'da bulunamadı, rasyon kalemi uygulanamadı.`
+        );
+        continue;
+      }
+
+      const kalanKg = parseFloat(yem.kalanKg || 0);
+      const dusulecekMiktar = Math.min(hedefMiktar, kalanKg);
+
+      if (dusulecekMiktar <= 0) {
+        uyarilar.push(
+          `${rasyon.hedefAd}: "${kalem.yemAdi}" stoğu tükendi, ${hedefMiktar.toFixed(1)} kg düşülemedi.`
+        );
+        continue;
+      }
+
+      await ambarYemKullan({
+        yemId: kalem.yemId,
+        miktarKg: dusulecekMiktar,
+        modul: rasyon.modul,
+        hedefId: rasyon.hedefId,
+        hedefAd: rasyon.hedefAd,
+        otomatikMi: true,
+        rasyonId: rasyon.id,
+        not: `Otomatik rasyon düşümü (${gunSayisi} gün)`,
+      });
+
+      uygulananKalemler.push({
+        yemId: kalem.yemId,
+        yemAdi: kalem.yemAdi,
+        dusulen: dusulecekMiktar,
+      });
+
+      if (dusulecekMiktar < hedefMiktar) {
+        uyarilar.push(
+          `${rasyon.hedefAd}: "${kalem.yemAdi}" stoğu yetersiz, ${hedefMiktar.toFixed(1)} kg gerekirken ${dusulecekMiktar.toFixed(1)} kg düşüldü.`
+        );
+      }
+    }
+
+    if (uygulananKalemler.length > 0) {
+      uygulandi.push({
+        rasyonId: rasyon.id,
+        hedefAd: rasyon.hedefAd,
+        gun: gunSayisi,
+        kalemler: uygulananKalemler,
+      });
+    }
+
+    degisenRasyonVar = true;
+    guncelRasyonlar.push({ ...rasyon, sonHesaplananTarih: bugunIso });
+  }
+
+  if (degisenRasyonVar) {
+    await saveRasyonlar(guncelRasyonlar);
+  }
+
+  return { uygulandi, uyarilar };
+};
 
 // ─── AYARLAR ──────────────────────────────────────────────────────
 
