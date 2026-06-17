@@ -1,6 +1,6 @@
 // Reçber - Ana Navigation
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, SafeAreaView, Alert } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -25,7 +25,7 @@ import AmbarScreen from './src/screens/AmbarScreen';
 import COLORS from './src/theme/colors';
 
 // Storage
-import { getAktifModul, setAktifModul } from './src/data/storage';
+import { getAktifModul, setAktifModul, rasyonlariUygula } from './src/data/storage';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -237,6 +237,21 @@ export default function App() {
         setModul(kayitliModul);
       }
       setYukleniyor(false);
+
+      // Otomatik rasyon düşümü: uygulama her açıldığında, son hesaplanan
+      // tarihten bugüne kaç gün geçtiyse o kadarını Ambar'dan düşer.
+      // Modül seçimi yapılmamış olsa da (ilk kurulum) zararsızca boş döner.
+      try {
+        const { uyarilar } = await rasyonlariUygula();
+        if (uyarilar && uyarilar.length > 0) {
+          Alert.alert(
+            'Rasyon Uyarısı',
+            uyarilar.join('\n\n')
+          );
+        }
+      } catch (e) {
+        console.error('rasyonlariUygula hata:', e);
+      }
     };
     modulYukle();
   }, []);
