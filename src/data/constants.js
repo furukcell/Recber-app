@@ -188,9 +188,19 @@ export const HESAP_TIPLERI = [
 
 // --- VARSAYILAN FİYATLAR ---
 export const VARSAYILAN_FIYATLAR = {
-  canliKgFiyat:  300,
-  karkasKgFiyat: 600,
+  // Mevcut alanlar (geriye uyumluluk)
+  canliKgFiyat: 0,
+  karkasKgFiyat: 0,
   randimanOrani: 0.55,
+  // Yeni — besi
+  besiCanliKgFiyati: 0,
+  besiKarkasKgFiyati: 0,
+  // Yeni — süt
+  sutLitreFiyati: 0,
+  // Yeni — kümes
+  yumurtaAdetFiyati: 0,
+  tavukCanliKgFiyati: 0,
+  tavukEtKgFiyati: 0,
 };
 
 // --- RASYON SİSTEMİ ────────────────────────────────────────────
