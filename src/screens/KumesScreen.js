@@ -558,8 +558,10 @@ const handleGrupEkle = async () => {
                     {Number(y.kalanDeger || 0).toLocaleString('tr-TR')} ₺
                   </Text>
                 </View>
-              ))
-            )}
+                ))
+              )}
+             </View>
+           )}
 
         {/* ─── FİNANS TAB ─── */}
         {aktifTab === 'finans' && (
