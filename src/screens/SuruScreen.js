@@ -13,9 +13,11 @@ import COLORS from '../theme/colors';
 import {
   getSuruHayvanlar, suruHayvanEkle, hayvanGuncelle,
   getSutKayitlari, sutKayitEkle, hayvanSutKayitlari,
-  getAktifModul, getAmbarStokOzeti
+  getAktifModul, getAmbarStokOzeti,
+  getAmbarYemleri, hedefinAktifRasyonu, rasyonOlustur,
+  rasyonSonlandir, rasyonlariUygula,
 } from '../data/storage';
-import { LAKTASYON_DONEM } from '../data/constants';
+import { LAKTASYON_DONEM, RASYON_GRUP_ID, RASYON_GRUP_AD } from '../data/constants';
 
 const BOŞ_HAYVAN = {
   isim: '', kupeNo: '', dogumTarihi: '', buzagiTarihi: '',
@@ -52,6 +54,16 @@ export default function SuruScreen({ navigation }) {
   const [hayvanForm, setHayvanForm] = useState(BOŞ_HAYVAN);
   const [sutForm, setSutForm] = useState(BOŞ_SUT);
 
+  // ─── RASYON STATE ─────────────────────────────────────────────
+  const [bireyselRasyon, setBireyselRasyon] = useState(null);
+  const [grupRasyon, setGrupRasyon] = useState(null);
+  const [ambarYemleri, setAmbarYemleri] = useState([]);
+  const [rasyonModal, setRasyonModal] = useState(false);
+  const [rasyonKapsam, setRasyonKapsam] = useState('hayvan'); // 'hayvan' | 'grup'
+  const [rasyonKalemleri, setRasyonKalemleri] = useState([
+    { yemId: '', yemAdi: '', gunlukKg: '' },
+  ]);
+
   const SURU_RENK = COLORS.suru;
 
   const veriYukle = async () => {
@@ -63,6 +75,9 @@ export default function SuruScreen({ navigation }) {
 
   const stok = await getAmbarStokOzeti('sut');
   setAmbarStok(stok);
+
+  const yemler = await getAmbarYemleri();
+  setAmbarYemleri(yemler);
 };
 
   useFocusEffect(useCallback(() => { veriYukle(); }, []));
@@ -128,6 +143,13 @@ const handleHayvanEkle = async () => {
     setSeciliHayvan(hayvan);
     const kayitlar = await hayvanSutKayitlari(hayvan.id);
     setHayvanSutleri(kayitlar);
+
+    // Bu inek için rasyon bilgilerini de yükle
+    const bireysel = await hedefinAktifRasyonu('sut', hayvan.id);
+    setBireyselRasyon(bireysel);
+    const grup = await hedefinAktifRasyonu('sut', RASYON_GRUP_ID.sut);
+    setGrupRasyon(grup);
+
     setDetayModal(true);
   };
 
@@ -144,6 +166,108 @@ const handleHayvanEkle = async () => {
       ...donemler,
       { text: 'İptal', style: 'cancel' }
     ]);
+  };
+
+  // ─── RASYON MODAL AÇ ──────────────────────────────────────────
+  const handleRasyonModalAc = (kapsam) => {
+    setRasyonKapsam(kapsam);
+    const mevcut = kapsam === 'hayvan' ? bireyselRasyon : grupRasyon;
+    if (mevcut) {
+      setRasyonKalemleri(
+        mevcut.kalemler.map(k => ({
+          yemId: k.yemId,
+          yemAdi: k.yemAdi,
+          gunlukKg: String(k.gunlukKg),
+        }))
+      );
+    } else {
+      setRasyonKalemleri([{ yemId: '', yemAdi: '', gunlukKg: '' }]);
+    }
+    setRasyonModal(true);
+  };
+
+  const handleRasyonKalemEkle = () => {
+    setRasyonKalemleri([...rasyonKalemleri, { yemId: '', yemAdi: '', gunlukKg: '' }]);
+  };
+
+  const handleRasyonKalemSil = (index) => {
+    if (rasyonKalemleri.length === 1) return;
+    setRasyonKalemleri(rasyonKalemleri.filter((_, i) => i !== index));
+  };
+
+  const handleRasyonKalemGuncelle = (index, alan, deger) => {
+    const yeni = [...rasyonKalemleri];
+    if (alan === 'yemId') {
+      const secilenYem = ambarYemleri.find(y => y.id === deger);
+      yeni[index] = { ...yeni[index], yemId: deger, yemAdi: secilenYem?.ad || '' };
+    } else {
+      yeni[index] = { ...yeni[index], [alan]: deger };
+    }
+    setRasyonKalemleri(yeni);
+  };
+
+  // ─── RASYON KAYDET ────────────────────────────────────────────
+  const handleRasyonKaydet = async () => {
+    const gecerliKalemler = rasyonKalemleri.filter(
+      k => k.yemId && parseFloat(k.gunlukKg) > 0
+    );
+
+    if (gecerliKalemler.length === 0) {
+      Alert.alert('Eksik Bilgi', 'En az bir yem seçip günlük kg giriniz.');
+      return;
+    }
+
+    try {
+      // Önce mevcut rasyonu bugüne kadar uygula, sonra yeni rasyonu kaydet.
+      await rasyonlariUygula();
+
+      const hedefId = rasyonKapsam === 'hayvan' ? seciliHayvan.id : RASYON_GRUP_ID.sut;
+      const hedefAd = rasyonKapsam === 'hayvan' ? seciliHayvan.isim : RASYON_GRUP_AD.sut;
+
+      await rasyonOlustur({
+        modul: 'sut',
+        kapsamTipi: rasyonKapsam,
+        hedefId,
+        hedefAd,
+        kalemler: gecerliKalemler,
+      });
+
+      setRasyonModal(false);
+
+      // Detay modalındaki rasyon görünümünü tazele
+      const bireysel = await hedefinAktifRasyonu('sut', seciliHayvan.id);
+      setBireyselRasyon(bireysel);
+      const grup = await hedefinAktifRasyonu('sut', RASYON_GRUP_ID.sut);
+      setGrupRasyon(grup);
+
+      veriYukle();
+      Alert.alert('Kaydedildi ✅', 'Rasyon güncellendi. Yem her gün otomatik düşülecek.');
+    } catch (e) {
+      Alert.alert('Hata', e.message || 'Rasyon kaydedilemedi.');
+    }
+  };
+
+  const handleRasyonSonlandir = (rasyon) => {
+    Alert.alert(
+      'Rasyonu Sonlandır',
+      `"${rasyon.hedefAd}" için rasyon sonlandırılsın mı? Otomatik yem düşümü duracak.`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sonlandır',
+          style: 'destructive',
+          onPress: async () => {
+            await rasyonlariUygula();
+            await rasyonSonlandir(rasyon.id);
+
+            const bireysel = await hedefinAktifRasyonu('sut', seciliHayvan.id);
+            setBireyselRasyon(bireysel);
+            const grup = await hedefinAktifRasyonu('sut', RASYON_GRUP_ID.sut);
+            setGrupRasyon(grup);
+          },
+        },
+      ]
+    );
   };
 
   // ─── HESAPLAMALAR ─────────────────────────────────────────────
@@ -568,6 +692,9 @@ const handleHayvanEkle = async () => {
             </TouchableOpacity>
           </View>
           <ScrollView style={{ padding: 16 }}>
+
+            {/* Süt Geçmişi */}
+            <Text style={styles.detayBolumBaslik}>Süt Geçmişi</Text>
             {hayvanSutleri.length === 0 ? (
               <View style={styles.bosDurum}>
                 <MaterialCommunityIcons name="cup-off" size={40} color={COLORS.textLight} />
@@ -586,6 +713,189 @@ const handleHayvanEkle = async () => {
                   </Text>
                 </View>
               ))
+            )}
+
+            {/* ─── RASYON BÖLÜMÜ ─── */}
+            <Text style={[styles.detayBolumBaslik, { marginTop: 24 }]}>Yem Rasyonu</Text>
+            <Text style={styles.rasyonAciklama}>
+              Rasyon tanımlayın, her gün otomatik olarak Ambar'dan düşülsün.
+              Manuel günlük giriş yapmanıza gerek kalmaz.
+            </Text>
+
+            {/* Bireysel Rasyon */}
+            <View style={styles.rasyonKart}>
+              <View style={styles.rasyonKartUst}>
+                <View style={[styles.rasyonIkon, { backgroundColor: SURU_RENK }]}>
+                  <MaterialCommunityIcons name="cow" size={20} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rasyonKartBaslik}>{seciliHayvan?.isim} — Bireysel Rasyon</Text>
+                  <Text style={styles.rasyonKartAlt}>Sadece bu ineğe özel</Text>
+                </View>
+              </View>
+
+              {bireyselRasyon ? (
+                <>
+                  {bireyselRasyon.kalemler.map((k, i) => (
+                    <View key={i} style={styles.rasyonKalemSatir}>
+                      <MaterialCommunityIcons name="food-variant" size={16} color={SURU_RENK} />
+                      <Text style={styles.rasyonKalemAd}>{k.yemAdi}</Text>
+                      <Text style={[styles.rasyonKalemDeger, { color: SURU_RENK }]}>{k.gunlukKg} kg/gün</Text>
+                    </View>
+                  ))}
+                  <View style={styles.rasyonButonSatir}>
+                    <TouchableOpacity
+                      style={[styles.rasyonButon, { borderColor: SURU_RENK }]}
+                      onPress={() => handleRasyonModalAc('hayvan')}
+                    >
+                      <Text style={[styles.rasyonButonYazi, { color: SURU_RENK }]}>Güncelle</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.rasyonButon, { borderColor: COLORS.danger }]}
+                      onPress={() => handleRasyonSonlandir(bireyselRasyon)}
+                    >
+                      <Text style={[styles.rasyonButonYazi, { color: COLORS.danger }]}>Sonlandır</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.rasyonBosDurum}>
+                  <Text style={styles.rasyonBosYazi}>Bireysel rasyon tanımlanmamış</Text>
+                  <TouchableOpacity
+                    style={[styles.ekleButon, { backgroundColor: SURU_RENK, marginTop: 10, marginBottom: 0 }]}
+                    onPress={() => handleRasyonModalAc('hayvan')}
+                  >
+                    <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+                    <Text style={styles.ekleButonYazi}>Rasyon Tanımla</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Grup Rasyonu */}
+            <View style={[styles.rasyonKart, { opacity: bireyselRasyon ? 0.6 : 1 }]}>
+              <View style={styles.rasyonKartUst}>
+                <View style={[styles.rasyonIkon, { backgroundColor: COLORS.accent }]}>
+                  <MaterialCommunityIcons name="cow" size={20} color="#fff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rasyonKartBaslik}>{RASYON_GRUP_AD.sut}</Text>
+                  <Text style={styles.rasyonKartAlt}>
+                    {bireyselRasyon
+                      ? 'Bireysel rasyon aktif olduğu için bu uygulanmıyor'
+                      : 'Bireysel rasyon yoksa bu uygulanır'}
+                  </Text>
+                </View>
+              </View>
+
+              {grupRasyon ? (
+                <>
+                  {grupRasyon.kalemler.map((k, i) => (
+                    <View key={i} style={styles.rasyonKalemSatir}>
+                      <MaterialCommunityIcons name="food-variant" size={16} color={COLORS.accent} />
+                      <Text style={styles.rasyonKalemAd}>{k.yemAdi}</Text>
+                      <Text style={[styles.rasyonKalemDeger, { color: COLORS.accent }]}>{k.gunlukKg} kg/gün</Text>
+                    </View>
+                  ))}
+                  <View style={styles.rasyonButonSatir}>
+                    <TouchableOpacity
+                      style={[styles.rasyonButon, { borderColor: COLORS.accent }]}
+                      onPress={() => handleRasyonModalAc('grup')}
+                    >
+                      <Text style={[styles.rasyonButonYazi, { color: COLORS.accent }]}>Grup Rasyonunu Güncelle</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.rasyonBosDurum}>
+                  <Text style={styles.rasyonBosYazi}>Grup rasyonu tanımlanmamış</Text>
+                  <TouchableOpacity
+                    style={[styles.ekleButon, { backgroundColor: COLORS.accent, marginTop: 10, marginBottom: 0 }]}
+                    onPress={() => handleRasyonModalAc('grup')}
+                  >
+                    <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+                    <Text style={styles.ekleButonYazi}>Grup Rasyonu Tanımla</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* ─── RASYON FORM MODAL ─── */}
+      <Modal visible={rasyonModal} animationType="slide">
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalUst}>
+            <Text style={styles.modalBaslik}>
+              {rasyonKapsam === 'hayvan' ? `${seciliHayvan?.isim} — Rasyon` : `${RASYON_GRUP_AD.sut} — Rasyon`}
+            </Text>
+            <TouchableOpacity onPress={() => setRasyonModal(false)}>
+              <MaterialCommunityIcons name="close" size={28} color={COLORS.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ padding: 16 }}>
+            {ambarYemleri.length === 0 ? (
+              <View style={styles.rasyonBosDurum}>
+                <MaterialCommunityIcons name="barn" size={40} color={COLORS.textLight} />
+                <Text style={styles.rasyonBosYazi}>
+                  Ambar'da kayıtlı yem yok. Önce Ambar'dan yem ekleyin.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.formLabel}>Günlük Yem Kalemleri</Text>
+                {rasyonKalemleri.map((kalem, index) => (
+                  <View key={index} style={styles.rasyonKalemFormKart}>
+                    <View style={styles.rasyonKalemFormUst}>
+                      <Text style={styles.rasyonKalemFormBaslik}>Kalem {index + 1}</Text>
+                      {rasyonKalemleri.length > 1 && (
+                        <TouchableOpacity onPress={() => handleRasyonKalemSil(index)}>
+                          <MaterialCommunityIcons name="trash-can-outline" size={20} color={COLORS.danger} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    <Text style={styles.formLabel}>Yem Seçin</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                      {ambarYemleri.map(yem => (
+                        <TouchableOpacity
+                          key={yem.id}
+                          style={[
+                            styles.secimButon,
+                            kalem.yemId === yem.id && { backgroundColor: SURU_RENK, borderColor: SURU_RENK },
+                          ]}
+                          onPress={() => handleRasyonKalemGuncelle(index, 'yemId', yem.id)}
+                        >
+                          <Text style={[styles.secimYazi, kalem.yemId === yem.id && { color: '#fff' }]}>
+                            {yem.ad} ({Number(yem.kalanKg || 0).toLocaleString('tr-TR')} kg)
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+
+                    <FormInput
+                      label="Günlük Miktar (kg)"
+                      placeholder="Örn: 4"
+                      value={kalem.gunlukKg}
+                      onChange={v => handleRasyonKalemGuncelle(index, 'gunlukKg', v)}
+                      klavye="numeric"
+                    />
+                  </View>
+                ))}
+
+                <TouchableOpacity style={styles.kalemEkleButon} onPress={handleRasyonKalemEkle}>
+                  <MaterialCommunityIcons name="plus-circle-outline" size={18} color={SURU_RENK} />
+                  <Text style={[styles.kalemEkleYazi, { color: SURU_RENK }]}>Yem Kalemi Ekle</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.kaydetButon, { backgroundColor: SURU_RENK }]}
+                  onPress={handleRasyonKaydet}
+                >
+                  <Text style={styles.kaydetYazi}>RASYONU KAYDET</Text>
+                </TouchableOpacity>
+              </>
             )}
           </ScrollView>
         </SafeAreaView>
@@ -752,6 +1062,7 @@ const styles = StyleSheet.create({
   miniBar: { width: '100%', borderRadius: 3, minHeight: 3 },
   miniBarLabel: { fontSize: 9, color: COLORS.textLight, marginTop: 3 },
 
+  detayBolumBaslik: { fontSize: 14, fontWeight: '800', color: COLORS.textPrimary, marginBottom: 10 },
   detaySatir: {
     flexDirection: 'row', alignItems: 'center',
     paddingVertical: 12, borderBottomWidth: 0.5,
@@ -766,6 +1077,48 @@ const styles = StyleSheet.create({
   bosYazi: { fontSize: 14, color: COLORS.textLight },
   bosButon: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: 20, marginTop: 4 },
   bosButonYazi: { fontSize: 13, fontWeight: '700', color: '#fff' },
+
+  // Rasyon
+  rasyonAciklama: {
+    fontSize: 12, color: COLORS.textSecondary, lineHeight: 18,
+    marginBottom: 14,
+  },
+  rasyonKart: {
+    backgroundColor: COLORS.background, borderRadius: 16,
+    padding: 16, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border,
+  },
+  rasyonKartUst: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  rasyonIkon: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  rasyonKartBaslik: { fontSize: 14, fontWeight: '800', color: COLORS.textPrimary },
+  rasyonKartAlt: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
+  rasyonKalemSatir: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 8, borderTopWidth: 0.5, borderTopColor: COLORS.divider,
+  },
+  rasyonKalemAd: { flex: 1, fontSize: 13, color: COLORS.textPrimary, fontWeight: '600' },
+  rasyonKalemDeger: { fontSize: 13, fontWeight: '800' },
+  rasyonButonSatir: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  rasyonButon: {
+    flex: 1, borderWidth: 1.5, borderRadius: 10,
+    paddingVertical: 9, alignItems: 'center',
+  },
+  rasyonButonYazi: { fontSize: 12, fontWeight: '700' },
+  rasyonBosDurum: { alignItems: 'center', paddingVertical: 16, gap: 8 },
+  rasyonBosYazi: { fontSize: 13, color: COLORS.textLight, textAlign: 'center' },
+  rasyonKalemFormKart: {
+    backgroundColor: COLORS.background, borderRadius: 12,
+    padding: 12, marginBottom: 12, borderWidth: 1, borderColor: COLORS.border,
+  },
+  rasyonKalemFormUst: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 8,
+  },
+  rasyonKalemFormBaslik: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary },
+  kalemEkleButon: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, paddingVertical: 10, marginBottom: 16,
+  },
+  kalemEkleYazi: { fontSize: 13, fontWeight: '700' },
 
   modalContainer: { flex: 1, backgroundColor: COLORS.surface },
   modalUst: {
