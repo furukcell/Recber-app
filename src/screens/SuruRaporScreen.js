@@ -16,6 +16,7 @@ import COLORS from '../theme/colors';
 import {
   getSuruHayvanlar,
   getSutKayitlari,
+  modulYemKullanimlari,
 } from '../data/storage';
 
 const SURU_RENK = COLORS.suru || '#1A5276';
@@ -76,17 +77,48 @@ function sayi(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+// Yem kullanım kayıtlarının tarihi ISO string (Date.toISOString) formatında
+// tutuluyor. Süt/Tartım kayıtlarındaki "GG.AA.YYYY" formatından farklı
+// olduğu için ayrı bir kontrol fonksiyonu kullanıyoruz.
+function isoSonGunIcindeMi(isoTarih, gunSayisi) {
+  if (!isoTarih) return false;
+  const tarih = new Date(isoTarih);
+  if (Number.isNaN(tarih.getTime())) return false;
+
+  const bugun = new Date();
+  const baslangic = new Date();
+  baslangic.setDate(bugun.getDate() - (gunSayisi - 1));
+  baslangic.setHours(0, 0, 0, 0);
+
+  return tarih >= baslangic && tarih <= bugun;
+}
+
+function isoBuAyMi(isoTarih) {
+  if (!isoTarih) return false;
+  const tarih = new Date(isoTarih);
+  if (Number.isNaN(tarih.getTime())) return false;
+
+  const bugun = new Date();
+  return (
+    tarih.getFullYear() === bugun.getFullYear() &&
+    tarih.getMonth() === bugun.getMonth()
+  );
+}
+
 export default function SuruRaporScreen() {
   const [hayvanlar, setHayvanlar] = useState([]);
   const [sutKayitlar, setSutKayitlar] = useState([]);
+  const [yemKullanimlari, setYemKullanimlari] = useState([]);
   const [yenileniyor, setYenileniyor] = useState(false);
 
   const veriYukle = async () => {
     const h = await getSuruHayvanlar();
     const s = await getSutKayitlari();
+    const y = await modulYemKullanimlari('sut');
 
     setHayvanlar(Array.isArray(h) ? h : []);
     setSutKayitlar(Array.isArray(s) ? s : []);
+    setYemKullanimlari(Array.isArray(y) ? y : []);
   };
 
   useFocusEffect(
@@ -121,6 +153,26 @@ export default function SuruRaporScreen() {
     bugunInekSayisi > 0 ? (bugunToplam / bugunInekSayisi).toFixed(1) : '0.0';
 
   const son7GunOrt = son7Toplam > 0 ? (son7Toplam / 7).toFixed(1) : '0.0';
+
+  // ─── YEM MALİYETİ HESAPLAMALARI ───────────────────────────────
+  const son7YemKayitlari = yemKullanimlari.filter((k) => isoSonGunIcindeMi(k.tarih, 7));
+  const buAyYemKayitlari = yemKullanimlari.filter((k) => isoBuAyMi(k.tarih));
+
+  const toplamYemKg = yemKullanimlari.reduce((acc, k) => acc + sayi(k.miktarKg), 0);
+  const toplamYemMaliyet = yemKullanimlari.reduce((acc, k) => acc + sayi(k.toplamMaliyet), 0);
+
+  const son7YemKg = son7YemKayitlari.reduce((acc, k) => acc + sayi(k.miktarKg), 0);
+  const son7YemMaliyet = son7YemKayitlari.reduce((acc, k) => acc + sayi(k.toplamMaliyet), 0);
+
+  const buAyYemMaliyet = buAyYemKayitlari.reduce((acc, k) => acc + sayi(k.toplamMaliyet), 0);
+
+  // Litre süt başına yem maliyeti: son 7 günkü yem masrafı / son 7 günkü süt üretimi
+  const litreBasinaMaliyet = son7Toplam > 0 ? (son7YemMaliyet / son7Toplam).toFixed(2) : null;
+
+  // Toplam (tüm zamanlar) litre başına maliyet — genel verimlilik göstergesi
+  const tumZamanToplamSut = sutKayitlar.reduce((acc, k) => acc + sayi(k.toplamSut), 0);
+  const genelLitreBasinaMaliyet =
+    tumZamanToplamSut > 0 ? (toplamYemMaliyet / tumZamanToplamSut).toFixed(2) : null;
 
   const hayvanOzetleri = hayvanlar.map((h) => {
     const kayitlar = sutKayitlar.filter((k) => k.hayvanId === h.id);
@@ -165,6 +217,10 @@ export default function SuruRaporScreen() {
   const gunlukGruplar = sonGunleriHazirla(sutKayitlar, 7);
 
   const raporPaylas = async () => {
+    const yemSatiri = toplamYemMaliyet > 0
+      ? `\n🌾 Son 7 Gün Yem Masrafı: ${son7YemMaliyet.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL\n💧 Litre Başına Yem Maliyeti: ${litreBasinaMaliyet ? `${litreBasinaMaliyet} TL` : 'Veri yok'}\n`
+      : '';
+
     const metin =
 `🥛 Reçber Sürü Raporu
 
@@ -178,7 +234,7 @@ export default function SuruRaporScreen() {
 🗓️ Son 7 Gün Toplam: ${son7Toplam.toFixed(1)} lt
 📈 Günlük Ortalama: ${son7GunOrt} lt
 📆 Bu Ay Toplam: ${buAyToplam.toFixed(1)} lt
-
+${yemSatiri}
 ⭐ En Verimli:
 ${enVerimli?.hayvan?.isim ? `${enVerimli.hayvan.isim} — ${enVerimli.son7Ortalama.toFixed(1)} lt/gün` : 'Henüz veri yok'}
 
@@ -246,6 +302,59 @@ Reçber — Sürü & Süt Takibi`;
             <DurumMini label="Kuru" value={kuru} renk={COLORS.warning || SURU_RENK} />
             <DurumMini label="Doğum Yakın" value={dogumYakin} renk={COLORS.accent || SURU_RENK} />
           </View>
+        </View>
+
+        {/* ─── YEM MALİYETİ KARTI ─── */}
+        <View style={styles.card}>
+          <View style={styles.baslikSatir}>
+            <Text style={styles.cardTitle}>Yem Maliyeti</Text>
+            <MaterialCommunityIcons name="barn" size={20} color={SURU_RENK} />
+          </View>
+
+          {toplamYemMaliyet === 0 ? (
+            <BosDurum
+              ikon="food-off-outline"
+              mesaj="Henüz yem tüketim kaydı yok. İnek detayından rasyon tanımlayın."
+            />
+          ) : (
+            <>
+              <View style={styles.yemMaliyetGrid}>
+                <YemMaliyetMini
+                  label="Son 7 Gün"
+                  deger={`${son7YemMaliyet.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL`}
+                  altDeger={`${son7YemKg.toFixed(0)} kg`}
+                  renk={SURU_RENK}
+                />
+                <YemMaliyetMini
+                  label="Bu Ay"
+                  deger={`${buAyYemMaliyet.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL`}
+                  renk={COLORS.accent || SURU_RENK}
+                />
+                <YemMaliyetMini
+                  label="Toplam"
+                  deger={`${toplamYemMaliyet.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL`}
+                  altDeger={`${toplamYemKg.toFixed(0)} kg`}
+                  renk={COLORS.textSecondary}
+                />
+              </View>
+
+              <View style={styles.litreMaliyetKutu}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.litreMaliyetBaslik}>Litre Süt Başına Yem Maliyeti</Text>
+                  <Text style={styles.litreMaliyetAlt}>Son 7 günkü yem masrafı / son 7 günkü üretim</Text>
+                </View>
+                <Text style={[styles.litreMaliyetDeger, { color: SURU_RENK }]}>
+                  {litreBasinaMaliyet ? `${litreBasinaMaliyet} TL` : '—'}
+                </Text>
+              </View>
+
+              {genelLitreBasinaMaliyet && (
+                <Text style={styles.litreMaliyetGenelNot}>
+                  Tüm zamanlar ortalaması: {genelLitreBasinaMaliyet} TL/lt
+                </Text>
+              )}
+            </>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -436,6 +545,16 @@ function DurumMini({ label, value, renk }) {
   );
 }
 
+function YemMaliyetMini({ label, deger, altDeger, renk }) {
+  return (
+    <View style={styles.yemMaliyetMini}>
+      <Text style={styles.yemMaliyetLabel}>{label}</Text>
+      <Text style={[styles.yemMaliyetDeger, { color: renk }]}>{deger}</Text>
+      {altDeger ? <Text style={styles.yemMaliyetAltDeger}>{altDeger}</Text> : null}
+    </View>
+  );
+}
+
 function BosDurum({ ikon, mesaj }) {
   return (
     <View style={styles.bosDurum}>
@@ -554,6 +673,69 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: COLORS.textLight,
     marginTop: 2,
+    textAlign: 'center',
+  },
+
+  yemMaliyetGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+
+  yemMaliyetMini: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+  },
+
+  yemMaliyetLabel: {
+    fontSize: 10,
+    color: COLORS.textLight,
+    marginBottom: 4,
+  },
+
+  yemMaliyetDeger: {
+    fontSize: 15,
+    fontWeight: '900',
+  },
+
+  yemMaliyetAltDeger: {
+    fontSize: 10,
+    color: COLORS.textLight,
+    marginTop: 2,
+  },
+
+  litreMaliyetKutu: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 14,
+  },
+
+  litreMaliyetBaslik: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+  },
+
+  litreMaliyetAlt: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+
+  litreMaliyetDeger: {
+    fontSize: 20,
+    fontWeight: '900',
+  },
+
+  litreMaliyetGenelNot: {
+    fontSize: 11,
+    color: COLORS.textLight,
+    marginTop: 8,
     textAlign: 'center',
   },
 
