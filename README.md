@@ -29,6 +29,17 @@ Reçber’de yem ve maliyet girişi merkezi olarak **Ambar / Yem Stokları** ekr
 
 tek bir ortak ambar yapısında tutulur. Besi, Sürü ve Kümes ekranlarında ilgili ambar stokları ayrıca gösterilir.
 
+### Otomatik Rasyon Sistemi
+
+Besi ve Sürü modüllerinde yem tüketimi artık günlük elle girilmek zorunda değildir. Hayvana veya gruba bir **günlük rasyon** tanımlanır; uygulama her açıldığında son hesaplanan tarihten bugüne kaç gün geçtiyse o kadarını otomatik olarak Ambar’dan düşer.
+
+- Rasyon **bireysel** (tek hayvana özel) veya **grup** (Tüm Besi Hayvanları / Tüm Laktasyondaki İnekler) bazında tanımlanabilir
+- Bir hayvan için bireysel rasyon varsa o öncelikli uygulanır; yoksa grup rasyonu geçerli olur
+- Rasyon birden fazla yem kaleminden oluşabilir (örn. günde 3 kg saman + 2 kg konsantre)
+- Rasyon haftalarca/aylarca değiştirilmeden çalışabilir; sadece değişiklik gerektiğinde güncellenir
+- Ambar’da yeterli stok yoksa düşüm kısmi yapılır ve kullanıcıya uyarı gösterilir
+- Hayvan satıldığında bireysel rasyonu otomatik sonlandırılır
+
 ---
 
 ## 🧺 Ambar / Yem Stokları
@@ -65,7 +76,7 @@ Ambar ayrı bir ana tab değildir. Veri girişi Ayarlar içindeki Ambar ekranın
 | Sürü ekranı | Süt + Genel yem stokları |
 | Kümes özet ekranı | Kümes + Genel yem stokları |
 
-> Hedef yapı: yem/maliyet girişi sadece Ambar’dan yapılır; Besi, Sürü ve Kümes ekranları bu ortak ambar verisini gösterir.
+> Hedef yapı: yem/maliyet girişi sadece Ambar’dan yapılır; Besi, Sürü ve Kümes ekranları bu ortak ambar verisini gösterir. Besi ve Sürü modüllerinde gerçek tüketim artık Rasyon sistemi üzerinden otomatik düşülür (bkz. ilgili modül bölümleri).
 
 ---
 
@@ -95,6 +106,21 @@ Her tartım kaydında:
 - Güncel kilo girilir
 - O hafta verilen yem miktarları girilir
 - Kilo ve yem tüketimi otomatik biriktirilir
+
+> Bu form, kilo takibi ve GCAA hesabı için ayrı bir akış olarak korunmuştur. Ambar’dan otomatik düşülen gerçek yem tüketimi Rasyon sekmesi üzerinden yönetilir, bu iki kayıt birbirine karıştırılmaz.
+
+### Rasyon Sekmesi
+
+Hayvan detay ekranına eklenen **Rasyon** sekmesinde:
+
+- Hayvana özel bireysel rasyon tanımlanır veya güncellenir
+- “Tüm Besi Hayvanları” grup rasyonu tanımlanır veya güncellenir
+- Hangi rasyonun bu hayvan için geçerli olduğu (bireysel mi grup mu) açıkça gösterilir
+- Rasyon kalemleri Ambar’daki gerçek yemlerden seçilir, her kalem için günlük kg girilir
+- Birden fazla yem kalemi eklenebilir
+- Rasyon istenildiği zaman sonlandırılabilir
+
+Uygulama her açıldığında, aktif rasyonlardan geçen gün kadar yem otomatik olarak Ambar’dan düşülür; kullanıcı günlük giriş yapmaz.
 
 ### Otomatik GCAA Hesabı
 
@@ -147,6 +173,7 @@ Hayvan satıldığında:
 - Satış fiyatı, tarihi ve alıcı bilgisi kaydedilir
 - Alış fiyatı ile karşılaştırma yapılır
 - Tahmini yem maliyeti dahil net kar/zarar hesaplanır
+- Hayvana ait bireysel rasyon varsa otomatik olarak sonlandırılır
 
 ### Veteriner Takibi
 
@@ -170,6 +197,15 @@ Gösterilen bilgiler:
 - Kritik stok yüzdesi
 
 Yeni yem ve maliyet girişi bu ekrandan değil, **Ayarlar > Ambar / Yem Stokları** ekranından yapılır.
+
+### Rasyon Yem Maliyeti Raporu
+
+Rapor ekranının **Genel** sekmesine, rasyon sayesinde oluşan gerçek tüketim üzerinden hesaplanan bir maliyet kartı eklenmiştir:
+
+- Son 7 gün / bu ay / toplam rasyon yem masrafı (kg ve TL)
+- **1 kg canlı ağırlık artışı maliyeti** (toplam yem masrafı / toplam kg canlı ağırlık artışı)
+
+Bu kart, Yem ekranındaki eski manuel yem alım kayıtlarından (Finansal Özet kartı) ayrı tutulur; ikisi farklı veri kaynaklarını yansıtır.
 
 ---
 
@@ -210,6 +246,19 @@ Her inek için dönem atanabilir:
 - En yüksek gün
 - Son 7 güne ait mini bar grafik
 
+### Rasyon Bölümü
+
+İnek detay modalına eklenen **Yem Rasyonu** bölümünde:
+
+- İneğe özel bireysel rasyon tanımlanır veya güncellenir
+- “Tüm Laktasyondaki İnekler” grup rasyonu tanımlanır veya güncellenir
+- Hangi rasyonun bu inek için geçerli olduğu (bireysel mi grup mu) açıkça gösterilir
+- Rasyon kalemleri Ambar’daki gerçek yemlerden seçilir, her kalem için günlük kg girilir
+- Birden fazla yem kalemi eklenebilir (örn. kaba yem + konsantre yem)
+- Rasyon istenildiği zaman sonlandırılabilir
+
+Tanımlanan rasyon, uygulama her açıldığında geçen gün kadar otomatik olarak Ambar’dan düşülür. Süt ineği rasyonları genelde haftalarca/aylarca sabit kalabileceği için günlük elle giriş gerekmez.
+
 ### Süt Rapor Ekranı
 
 Sürü modülüne ayrı **Süt Rapor** ekranı eklenmiştir.
@@ -222,7 +271,9 @@ Süt Rapor ekranında:
 - En verimli inek
 - İnek bazlı performans
 - Dikkat edilmesi gereken düşük verimli inekler
-- Paylaşılabilir rapor
+- **Yem Maliyeti kartı**: son 7 gün / bu ay / toplam rasyon yem masrafı (kg ve TL)
+- **Litre süt başına yem maliyeti**: son 7 günkü yem masrafı / son 7 günkü süt üretimi, ayrıca tüm zamanlar ortalaması
+- Paylaşılabilir rapor (yem maliyeti bilgisi WhatsApp metnine de dahildir)
 
 gösterilir.
 
@@ -234,8 +285,6 @@ Gösterilen bilgiler:
 
 - Kalan yem kg
 - Stok değeri
-
-> Sonraki geliştirme hedefi: süt kaydı sırasında satılan süt, litre fiyatı, yem kg ve yem maliyeti üzerinden kâr/zarar hesabı.
 
 ---
 
@@ -327,6 +376,8 @@ Gösterilen bilgiler:
 
 Yeni yem ve maliyet girişi Kümes ekranından değil, **Ayarlar > Ambar / Yem Stokları** ekranından yapılır.
 
+> Kümes modülünde henüz Besi/Sürü’deki gibi otomatik rasyon sistemi yoktur; bu, sonraki geliştirme hedefidir.
+
 ### Finansal Özet
 
 Kümes modülü gelir ve giderleri tek ekranda toplar:
@@ -341,6 +392,32 @@ Kümes modülü gelir ve giderleri tek ekranda toplar:
 
 ---
 
+## 🌾 Rasyon Sistemi — Teknik Özet
+
+Rasyon sistemi, Besi ve Sürü modüllerinde günlük manuel yem girişini ortadan kaldırmak için eklenmiştir.
+
+### Çalışma Mantığı
+
+1. Kullanıcı bir hayvana (bireysel) veya modül geneline (grup: Tüm Besi Hayvanları / Tüm Laktasyondaki İnekler) bir rasyon tanımlar
+2. Rasyon, biri veya birden fazla Ambar yemi + bu yemlerin günlük kg miktarından oluşur
+3. Uygulama her açıldığında, her aktif rasyon için son hesaplanan tarihten bugüne kaç gün geçtiği hesaplanır
+4. Geçen gün sayısı kadar her kalem Ambar’dan toplu olarak düşülür (gün gün değil, tek seferde)
+5. Ambar’da yeterli stok yoksa kalem kısmi düşülür ve kullanıcıya uyarı gösterilir
+6. Bir hayvan için bireysel rasyon tanımlıysa o öncelikli uygulanır; tanımlı değilse hayvanın bağlı olduğu grup rasyonu geçerli olur
+7. Rasyon güncellendiğinde, önce eski rasyonun bugüne kadarki düşümü uygulanır, sonra yeni rasyon kaydedilir; böylece eski miktarla geçen günler kaybolmaz
+8. Hayvan satıldığında bireysel rasyonu otomatik sonlandırılır
+
+### Veri Modeli
+
+Her rasyon kaydı şu alanları içerir: modül (besi/sut), kapsam tipi (hayvan/grup), hedef ID ve adı, yem kalemleri listesi (yemId + günlük kg), başlangıç tarihi, son hesaplanan tarih, aktiflik durumu ve bitiş tarihi. Sonlandırılan rasyonlar silinmez, geçmiş olarak saklanır.
+
+### Sınırlamalar
+
+- Kümes modülünde henüz rasyon sistemi yok
+- Otomatik düşüm sadece uygulama açıldığında / ilgili ekranlara girildiğinde tetiklenir; arka planda gerçek zamanlı bir zamanlayıcı çalışmaz (uygulama günlerce açılmazsa, tekrar açıldığında geçen tüm günler topluca hesaplanıp düşülür)
+
+---
+
 ## 📊 Raporlar — Ne Yapar?
 
 ### Besi Raporları
@@ -351,8 +428,9 @@ Kümes modülü gelir ve giderleri tek ekranda toplar:
 - Aylık tartım sayısı
 - Toplam yem
 - Aktif hayvan durumu
+- **Rasyon yem maliyeti** (son 7 gün / bu ay / toplam, kg ve TL) ve 1 kg canlı ağırlık artışı maliyeti
 - Satış geçmişi
-- WhatsApp raporu
+- WhatsApp raporu (rasyon yem maliyeti bilgisi dahil)
 
 ### Süt Raporları
 
@@ -361,7 +439,8 @@ Kümes modülü gelir ve giderleri tek ekranda toplar:
 - Aylık süt toplamı
 - En verimli inek
 - Düşük verim uyarıları
-- Paylaşılabilir süt raporu
+- **Yem maliyeti** ve litre süt başına yem maliyeti
+- Paylaşılabilir süt raporu (yem maliyeti bilgisi dahil)
 
 ### Kümes Raporları
 
@@ -437,6 +516,7 @@ Ayarlar ekranına **Uygulama Hakkında** ekranı eklenmiştir.
 | Süt ineği sayısı | 2 inek | Sınırsız |
 | Kümes toplam tavuk sayısı | 20 tavuk | Sınırsız |
 | Ambar / yem stokları | ✅ Sınırsız | ✅ Sınırsız |
+| Rasyon sistemi (Besi & Sürü) | ✅ Sınırsız | ✅ Sınırsız |
 | Yedek al / geri yükle | ✅ | ✅ |
 | GCAA ve performans hesapları | ✅ | ✅ |
 | Sat / Bekle motoru | ✅ | ✅ |
@@ -466,7 +546,8 @@ Uygulama **AsyncStorage** kullanır. Tüm veriler cihaz hafızasında saklanır.
 | `@recber_suru` | Sürü hayvanları |
 | `@recber_sut` | Süt kayıtları |
 | `@recber_ambar_yemleri` | Ortak Ambar yem stokları |
-| `@recber_yem_kullanimlari` | Ambar yem kullanım kayıtları |
+| `@recber_yem_kullanimlari` | Ambar yem kullanım kayıtları (manuel + otomatik rasyon düşümleri) |
+| `@recber_rasyonlar` | Besi & Sürü rasyon tanımları (bireysel ve grup) |
 | `@recber_modul` | Aktif modül |
 | `@recber_ayarlar` | Fiyat ayarları |
 | `@recber_pro` | Pro durumu |
@@ -484,7 +565,7 @@ Uygulama **AsyncStorage** kullanır. Tüm veriler cihaz hafızasında saklanır.
 
 ```text
 Recber-app/
-├── App.js                          # Navigation + modül seçim ekranı
+├── App.js                          # Navigation + modül seçim ekranı + açılışta otomatik rasyon uygulama
 ├── app.json                        # Expo uygulama ayarları
 ├── eas.json                        # EAS Build ayarları
 ├── codemagic.yaml                  # Codemagic Android build ayarları
@@ -494,16 +575,16 @@ Recber-app/
     ├── screens/
     │   ├── HomeScreen.js           # Ana sayfa
     │   ├── HayvanlarScreen.js      # Besi hayvan listesi + Pro limit
-    │   ├── HayvanDetayScreen.js    # Besi hayvan detayı
+    │   ├── HayvanDetayScreen.js    # Besi hayvan detayı + Rasyon sekmesi
     │   ├── YemScreen.js            # Besi için Ambar stok görünümü
     │   ├── VeterinerScreen.js      # Aşı + sağlık sorunları
-    │   ├── RaporScreen.js          # Sat/bekle + aylık + genel + WhatsApp
+    │   ├── RaporScreen.js          # Sat/bekle + aylık + genel + rasyon yem maliyeti + WhatsApp
     │   ├── AyarlarScreen.js        # Ayarlar + Ambar + KVKK + Hakkında
     │   ├── AmbarScreen.js          # Ortak yem stoku ve maliyet girişi
     │   ├── HakkimizdaScreen.js     # Uygulama hakkında ekranı
     │   ├── KvkkEkrani.js           # KVKK / gizlilik açıklaması
-    │   ├── SuruScreen.js           # Süt ineği modülü + Ambar stok özeti
-    │   ├── SuruRaporScreen.js      # Süt raporu
+    │   ├── SuruScreen.js           # Süt ineği modülü + Ambar stok özeti + Rasyon bölümü
+    │   ├── SuruRaporScreen.js      # Süt raporu + yem maliyeti / litre başına maliyet
     │   └── KumesScreen.js          # Kümes modülü + Ambar stok özeti
     │
     ├── components/
@@ -513,8 +594,8 @@ Recber-app/
     │   └── TavsiyeKutu.js          # Sat/bekle hesap motoru
     │
     ├── data/
-    │   ├── storage.js              # AsyncStorage CRUD + Ambar + JSON yedekleme
-    │   └── constants.js            # Sabitler + ırk, yem, kümes listeleri
+    │   ├── storage.js              # AsyncStorage CRUD + Ambar + Rasyon motoru + JSON yedekleme
+    │   └── constants.js            # Sabitler + ırk, yem, kümes, rasyon grup listeleri
     │
     ├── utils/
     │   ├── hesaplama.js            # Tüm hesaplama fonksiyonları
@@ -608,8 +689,10 @@ Recber-app/
 - [x] Kümes 20 tavuk limiti
 - [x] KVKK / Gizlilik ekranı
 - [x] Uygulama Hakkında ekranı
-- [ ] Ambar yem kullanım kayıtlarını Besi/Süt/Kümes günlük işlemlerine tam bağlama
-- [ ] Süt için yem maliyeti + litre süt kâr/zarar hesabı
+- [x] Otomatik rasyon sistemi (Besi & Sürü, bireysel + grup)
+- [x] Ambar yem kullanım kayıtlarını Besi/Süt günlük işlemlerine bağlama (rasyon üzerinden)
+- [x] Süt için yem maliyeti + litre süt kâr/zarar hesabı
+- [ ] Kümes için rasyon sistemi
 - [ ] Kümes için yumurta geliri - yem maliyeti net hesabını Ambar kullanımına bağlama
 - [ ] Pro satın alma entegrasyonu
 - [ ] Google Play kapalı test
@@ -627,9 +710,16 @@ Recber-app/
 - [x] Ambar ekranı oluşturuldu
 - [x] Ayarlar ekranından Ambar’a giriş eklendi
 - [x] Besi, Sürü ve Kümes ekranlarında Ambar stok özeti gösterildi
+- [x] Yem kullanım kayıtları Besi/Süt günlük işlemlerine rasyon sistemi üzerinden bağlandı
+- [x] Besi ve Süt raporları Ambar maliyetleriyle güçlendirildi
 - [ ] Eski yem alım sistemleriyle migration planı yapılacak
-- [ ] Yem kullanım kayıtları günlük işlemlere bağlanacak
-- [ ] Raporlar Ambar maliyetleriyle güçlendirilecek
+- [ ] Kümes için rasyon / yem kullanım bağlantısı yapılacak
+
+### Rasyon Sistemi — Sonraki Adımlar
+
+- [ ] Kümes modülüne rasyon sistemi eklenecek
+- [ ] Arka planda gerçek zamanlı zamanlayıcı değerlendirilecek (şu an sadece uygulama açılışında tetikleniyor)
+- [ ] Rasyon geçmişi / değişiklik log ekranı eklenebilir
 
 ### Ödeme ve Pro Entegrasyonu
 
@@ -647,7 +737,7 @@ Recber-app/
 - [ ] Internal test veya closed testing kanalı oluşturulacak
 - [ ] Test kullanıcı listesi hazırlanacak
 - [ ] İlk AAB kapalı teste yüklenecek
-- [ ] Besi, Sürü, Kümes ve Ambar gerçek cihazlarda test edilecek
+- [ ] Besi, Sürü, Kümes, Ambar ve Rasyon gerçek cihazlarda test edilecek
 - [ ] Pro ekranı, ödeme placeholder ve ücretsiz limit akışları test edilecek
 - [ ] Yedek al / geri yükle akışı test edilecek
 - [ ] Kritik crash yoksa üretim başvurusu yapılacak
@@ -667,6 +757,7 @@ Recber-app/
 - [ ] Kümes için tavuk başı yem maliyeti eklenebilir
 - [ ] Sürü için doğum yaklaşan inek uyarısı eklenebilir
 - [ ] Besi için son tartımdan kaç gün geçti uyarısı eklenebilir
+- [ ] Rasyon stoğu kritik seviyeye düştüğünde proaktif uyarı eklenebilir
 - [ ] Tüm modüller için WhatsApp'a kısa günlük rapor paylaşımı eklenebilir
 - [ ] Pro ekranında “tek seferlik ödeme, bulut yok, veri telefonda” mesajı net anlatılmalı
 
@@ -695,9 +786,14 @@ Build öncesi şu akış test edilmeli:
 4. Hayvan eklenir
 5. 3. hayvan eklenmek istenir → Pro uyarısı çıkar
 6. Tartım girilir
-7. Sağlık/aşı kaydı girilir
-8. Hayvan detayında performans sekmesi kontrol edilir
-9. Rapor → Sat/Bekle → kg fiyatı girilir → karar alınır
+7. Hayvan detayı → Rasyon sekmesinde bireysel rasyon tanımlanır (Ambar’dan yem seçilir, günlük kg girilir)
+8. Uygulama kapatılıp birkaç gün sonra (veya tarih ileri alınarak) tekrar açılır, Ambar stoğunun geçen gün × günlük kg kadar düştüğü kontrol edilir
+9. Grup rasyonu (“Tüm Besi Hayvanları”) tanımlanır, bireysel rasyonu olmayan başka bir hayvana bu rasyonun uygulandığı kontrol edilir
+10. Sağlık/aşı kaydı girilir
+11. Hayvan detayında performans sekmesi kontrol edilir
+12. Rapor → Genel sekmesinde Rasyon Yem Maliyeti kartı ve 1 kg canlı ağırlık artışı maliyeti kontrol edilir
+13. Rapor → Sat/Bekle → kg fiyatı girilir → karar alınır
+14. Hayvan satılır, bireysel rasyonun otomatik sonlandığı kontrol edilir
 
 ### Sürü Testi
 
@@ -707,7 +803,10 @@ Build öncesi şu akış test edilmeli:
 4. İnek kaydı eklenir
 5. 3. inek eklenmek istenir → Pro uyarısı çıkar
 6. Sabah ve akşam süt kaydı girilir
-7. Süt Rapor ekranı kontrol edilir
+7. İnek detayında Yem Rasyonu bölümünden bireysel rasyon tanımlanır
+8. Grup rasyonu (“Tüm Laktasyondaki İnekler”) tanımlanır
+9. Birkaç gün sonra Ambar stoğunun otomatik düştüğü kontrol edilir
+10. Süt Rapor ekranı kontrol edilir, Yem Maliyeti kartı ve litre başına maliyet değeri kontrol edilir
 
 ### Kümes Testi
 
@@ -727,9 +826,10 @@ Build öncesi şu akış test edilmeli:
 1. Uygulama kapatılıp açılır → veriler duruyor
 2. Ayarlar → Yedek Al → dosya paylaşılır
 3. Tüm Verileri Sil
-4. Ayarlar → Yedekten Geri Yükle → veriler geri gelir
+4. Ayarlar → Yedekten Geri Yükle → veriler geri gelir (rasyon tanımları dahil)
 5. Ücretsiz limit aşılınca Pro ekranı açılır
 6. İnternet yokken uygulama ana özellikleri çalışmaya devam eder
+7. Ambar’da bir yem stoğu az bırakılıp rasyon tüketimi bu stoğu aşacak şekilde ayarlanır, kısmi düşüm ve uyarı mesajının doğru çalıştığı kontrol edilir
 
 ---
 
@@ -741,6 +841,7 @@ Reçber şu anda temel ürün olarak:
 - Süt / Sürü kaydı
 - Kümes kaydı
 - Ortak Ambar
+- Otomatik rasyon sistemi (Besi & Sürü)
 - Pro limitleri
 - KVKK / Hakkında ekranları
 - JSON yedekleme
@@ -752,10 +853,10 @@ Market öncesi ana eksikler:
 
 - Pro ödeme entegrasyonu
 - Google Play kapalı test
-- Ambar yem kullanım kayıtlarının tüm raporlara tam bağlanması
-- Gerçek cihazlarda kapsamlı test
+- Kümes modülüne rasyon sistemi eklenmesi
+- Gerçek cihazlarda kapsamlı test (özellikle rasyonun gün geçişlerinde doğru çalışması)
 
 ---
 
-*Reçber v1.1.0 — Besi, Süt, Kümes & Ambar Yönetim Uygulaması*  
-*Tamamen çevrimdışı • AsyncStorage • Expo SDK 53*
+*Reçber v1.2.0 — Besi, Süt, Kümes & Ambar Yönetim Uygulaması*  
+*Tamamen çevrimdışı • AsyncStorage • Expo SDK 53 • Otomatik Rasyon Sistemi*
