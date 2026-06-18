@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, Alert
+  StyleSheet, RefreshControl
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,25 +10,32 @@ import { useFocusEffect } from '@react-navigation/native';
 import HeaderBar from '../components/HeaderBar';
 import COLORS from '../theme/colors';
 import TYPOGRAPHY from '../theme/typography';
-import { getGenel, getHayvanlar, getStokDurum, getSaglikKayitlar, getAktifModul, setAktifModul } from '../data/storage';
+import { getGenel, getHayvanlar, getSaglikKayitlar, getAktifModul, getAmbarStokOzeti } from '../data/storage';
 import { GCAA_SINIRLAR, GCAA_RENKLER } from '../data/constants';
+
+const MODUL_BILGI = {
+  besi:  { label: 'BESİ BÖLÜMÜ',  ikon: 'cow',  renk: '#3D5A3E' },
+  suru:  { label: 'SÜRÜ BÖLÜMÜ',  ikon: 'cow',  renk: '#1A5276' },
+  kumes: { label: 'KÜMES BÖLÜMÜ', ikon: 'bird', renk: '#A0522D' },
+};
 
 export default function HomeScreen({ navigation }) {
   const [aktifModul, setModul] = useState('besi');
   const [ozet, setOzet] = useState({ toplamHayvan: 0, hastaHayvanSayisi: 0, toplamYemMaliyet: 0, satilan: 0 });
   const [hayvanlar, setHayvanlar] = useState([]);
-  const [stoklar, setStoklar] = useState([]);
+  const [ambarStok, setAmbarStok] = useState({ yemler: [], toplamKg: 0, toplamDeger: 0 });
   const [yenileniyor, setYenileniyor] = useState(false);
 
   const veriYukle = async () => {
     const modul = await getAktifModul();
-    setModul(modul);
+    setModul(modul || 'besi');
     const genel = await getGenel();
     setOzet(genel);
     const liste = await getHayvanlar();
     setHayvanlar(liste.filter(h => !h.satildiMi).slice(0, 3));
-    const stok = await getStokDurum();
-    setStoklar(stok.filter(s => s.toplamAlinan > 0).slice(0, 3));
+    // Stok artık Ambar'dan geliyor
+    const stok = await getAmbarStokOzeti(modul || 'besi');
+    setAmbarStok(stok);
   };
 
   useFocusEffect(useCallback(() => { veriYukle(); }, []));
@@ -39,16 +46,9 @@ export default function HomeScreen({ navigation }) {
     setYenileniyor(false);
   };
 
-  const modulDegistir = async () => {
-    const yeni = aktifModul === 'besi' ? 'suru' : 'besi';
-    await setAktifModul(yeni);
-    setModul(yeni);
-    veriYukle();
-  };
+  const modulBilgi = MODUL_BILGI[aktifModul] || MODUL_BILGI.besi;
+  const modulRenk = modulBilgi.renk;
 
-  const modulRenk = aktifModul === 'besi' ? COLORS.besi : COLORS.suru;
-
-  // GCAA hesapla
   const gcaaHesapla = (alis, guncel, gun) => {
     const fark = parseFloat(guncel) - parseFloat(alis);
     const g = parseFloat(gun) || 1;
@@ -61,29 +61,26 @@ export default function HomeScreen({ navigation }) {
     return GCAA_RENKLER.iyi;
   };
 
+  // Ambar stok satırları için yemler listesi
+  const stokSatirlari = (ambarStok.yemler || []).slice(0, 3);
+
   return (
     <View style={styles.container}>
       <HeaderBar
         baslik="Reçber"
-        altBaslik={aktifModul === 'besi' ? 'Besi Takibi' : 'Sürü Takibi'}
+        altBaslik={modulBilgi.label}
         modulRenk={modulRenk}
-        sagIcon="swap-horizontal"
-        sagOnPress={modulDegistir}
       />
 
       <ScrollView
         style={styles.scroll}
         refreshControl={<RefreshControl refreshing={yenileniyor} onRefresh={onYenile} tintColor={modulRenk} />}
       >
-        {/* Modül Rozeti */}
+        {/* Modül Rozeti — sadece bilgi, buton yok */}
         <View style={[styles.modulRozet, { backgroundColor: modulRenk }]}>
-          <MaterialCommunityIcons name="cow" size={16} color="#fff" />
-          <Text style={styles.modulRozetYazi}>
-            {aktifModul === 'besi' ? 'BESİ BÖLÜMÜ' : 'SÜRÜ BÖLÜMÜ'}
-          </Text>
-          <TouchableOpacity onPress={modulDegistir}>
-            <Text style={styles.modulDegistir}>Değiştir →</Text>
-          </TouchableOpacity>
+          <MaterialCommunityIcons name={modulBilgi.ikon} size={16} color="#fff" />
+          <Text style={styles.modulRozetYazi}>{modulBilgi.label}</Text>
+          <Text style={styles.modulAciklama}>Modül değiştirmek için Ayarlar'a git</Text>
         </View>
 
         {/* Özet Kartlar */}
@@ -103,10 +100,10 @@ export default function HomeScreen({ navigation }) {
             renk={ozet.hastaHayvanSayisi > 0 ? COLORS.danger : COLORS.success}
           />
           <OzetKart
-            ikon="cash"
-            baslik="Yem"
-            deger={`${Math.round(ozet.toplamYemMaliyet / 1000)}K`}
-            alt="TL Harcama"
+            ikon="barn"
+            baslik="Yem Stok"
+            deger={`${Math.round((ambarStok.toplamKg || 0) / 1000 * 10) / 10}t`}
+            alt="Kalan kg"
             renk={COLORS.accent}
           />
           <OzetKart
@@ -175,7 +172,7 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
 
-        {/* Yem Stok Özeti */}
+        {/* Yem Stok Özeti — Ambar'dan */}
         <View style={[styles.bolum, { marginBottom: 30 }]}>
           <View style={styles.bolumUst}>
             <Text style={styles.bolumBaslik}>Yem Stoku</Text>
@@ -184,27 +181,47 @@ export default function HomeScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {stoklar.length === 0 ? (
+          {/* Ambar toplam özet */}
+          <View style={[styles.ambarOzetSatir, { borderColor: modulRenk + '30' }]}>
+            <View style={styles.ambarOzetMetrik}>
+              <Text style={[styles.ambarOzetDeger, { color: modulRenk }]}>
+                {Number(ambarStok.toplamKg || 0).toLocaleString('tr-TR')} kg
+              </Text>
+              <Text style={styles.ambarOzetLabel}>Kalan Yem</Text>
+            </View>
+            <View style={[styles.ambarOzetAyrac, { backgroundColor: modulRenk + '30' }]} />
+            <View style={styles.ambarOzetMetrik}>
+              <Text style={[styles.ambarOzetDeger, { color: modulRenk }]}>
+                {Number(ambarStok.toplamDeger || 0).toLocaleString('tr-TR')} TL
+              </Text>
+              <Text style={styles.ambarOzetLabel}>Stok Değeri</Text>
+            </View>
+          </View>
+
+          {stokSatirlari.length === 0 ? (
             <BosDurum
               ikon="barley-off"
-              mesaj="Henüz yem alımı yapılmamış"
-              butonYazi="Yem Ekle"
-              onPress={() => navigation.navigate('Yem')}
+              mesaj="Ambar'da henüz yem stoku yok"
+              butonYazi="Ambara Git"
+              onPress={() => navigation.navigate('Ayarlar')}
               renk={modulRenk}
             />
           ) : (
-            stoklar.map(s => (
-              <View key={s.tip} style={styles.stokSatir}>
-                <Text style={styles.stokTip}>{s.tip.charAt(0).toUpperCase() + s.tip.slice(1)}</Text>
-                <View style={styles.stokBarKap}>
-                  <View style={[styles.stokBar, {
-                    width: `${Math.min(s.yuzde, 100)}%`,
-                    backgroundColor: s.yuzde < 20 ? COLORS.danger : s.yuzde < 50 ? COLORS.warning : modulRenk,
-                  }]} />
+            stokSatirlari.map((s, i) => {
+              const kalanYuzde = s.toplamAlinan > 0 ? (s.kalanKg / s.toplamAlinan) * 100 : 0;
+              return (
+                <View key={s.id || i} style={styles.stokSatir}>
+                  <Text style={styles.stokTip} numberOfLines={1}>{s.isim || s.tip}</Text>
+                  <View style={styles.stokBarKap}>
+                    <View style={[styles.stokBar, {
+                      width: `${Math.min(kalanYuzde, 100)}%`,
+                      backgroundColor: kalanYuzde < 20 ? COLORS.danger : kalanYuzde < 50 ? COLORS.warning : modulRenk,
+                    }]} />
+                  </View>
+                  <Text style={styles.stokKalan}>{Math.round(s.kalanKg || 0)} kg</Text>
                 </View>
-                <Text style={styles.stokKalan}>{Math.round(s.kalan)} kg</Text>
-              </View>
-            ))
+              );
+            })
           )}
         </View>
       </ScrollView>
@@ -232,9 +249,11 @@ function BosDurum({ ikon, mesaj, butonYazi, onPress, renk }) {
     <View style={styles.bosDurum}>
       <MaterialCommunityIcons name={ikon} size={36} color={COLORS.textLight} />
       <Text style={styles.bosMesaj}>{mesaj}</Text>
-      <TouchableOpacity style={[styles.bosButon, { backgroundColor: renk }]} onPress={onPress}>
-        <Text style={styles.bosButonYazi}>{butonYazi}</Text>
-      </TouchableOpacity>
+      {butonYazi && (
+        <TouchableOpacity style={[styles.bosButon, { backgroundColor: renk }]} onPress={onPress}>
+          <Text style={styles.bosButonYazi}>{butonYazi}</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -252,7 +271,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   modulRozetYazi: { fontSize: 12, fontWeight: '700', color: '#fff', flex: 1, letterSpacing: 1 },
-  modulDegistir: { fontSize: 12, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
+  modulAciklama: { fontSize: 10, color: 'rgba(255,255,255,0.7)' },
 
   ozetGrid: {
     flexDirection: 'row',
@@ -307,6 +326,19 @@ const styles = StyleSheet.create({
   bolumBaslik: { fontSize: 16, fontWeight: '800', color: COLORS.textPrimary },
   tumunu: { fontSize: 13, fontWeight: '600' },
 
+  ambarOzetSatir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+    marginBottom: 12,
+  },
+  ambarOzetMetrik: { flex: 1, alignItems: 'center' },
+  ambarOzetDeger: { fontSize: 18, fontWeight: '900' },
+  ambarOzetLabel: { fontSize: 11, color: COLORS.textLight, marginTop: 2 },
+  ambarOzetAyrac: { width: 1, height: 36, marginHorizontal: 8 },
+
   hayvanSatir: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -328,7 +360,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 10,
   },
-  stokTip: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary, width: 70 },
+  stokTip: { fontSize: 13, fontWeight: '600', color: COLORS.textPrimary, width: 80 },
   stokBarKap: { flex: 1, height: 8, backgroundColor: COLORS.borderLight, borderRadius: 4, overflow: 'hidden' },
   stokBar: { height: 8, borderRadius: 4 },
   stokKalan: { fontSize: 12, fontWeight: '700', color: COLORS.textSecondary, width: 55, textAlign: 'right' },
