@@ -374,7 +374,7 @@ const handleGrupEkle = async () => {
                 }}
               />
               <HizliButon ikon="cash-plus" label="Satış Ekle" renk={COLORS.success} onPress={() => setSatisModal(true)} />
-              <HizliButon ikon="barley" label="Yem Alımı" renk={KUMES_RENK} onPress={() => setYemModal(true)} />
+              <HizliButon ikon="barn" label="Ambar'a Git" renk={KUMES_RENK} onPress={() => navigation.navigate('Ayarlar')} />
               <HizliButon ikon="alert-circle" label="Kayıp Kaydet" renk={COLORS.danger} onPress={() => {
                 if (aktifGruplar.length === 0) { Alert.alert('Önce grup ekle'); return; }
                 setKayipForm({ ...BOŞ_KAYIP, grupId: aktifGruplar[0].id });
@@ -518,16 +518,66 @@ const handleGrupEkle = async () => {
           </View>
         )}
 
-        {/* ─── YEM TAB ─── */}
+       {/* ─── YEM TAB ─── */}
         {aktifTab === 'yem' && (
           <View>
-            <TouchableOpacity
-              style={[styles.ekleButon, { backgroundColor: KUMES_RENK }]}
-              onPress={() => setYemModal(true)}
-            >
-              <MaterialCommunityIcons name="plus" size={18} color="#fff" />
-              <Text style={styles.ekleButonYazi}>Yem Alımı Ekle</Text>
-            </TouchableOpacity>
+            {/* Ambar bilgi kutusu */}
+            <View style={styles.ambarBilgiKutu}>
+              <MaterialCommunityIcons name="information-outline" size={18} color="#8E5A2A" />
+              <Text style={styles.ambarBilgiYazi}>
+                Yem alımı artık Ortak Ambar'dan yapılıyor. Burası kümes yemi stok özetini gösterir.
+              </Text>
+            </View>
+
+            {/* Ambar stok özeti */}
+            <View style={styles.ambarKart}>
+              <View style={styles.ambarUst}>
+                <View style={styles.ambarIkon}>
+                  <MaterialCommunityIcons name="barn" size={22} color={KUMES_RENK} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.ambarBaslik}>Kümes Yemi Stoku</Text>
+                  <Text style={styles.ambarAlt}>Ambar'daki kümes + genel yemler</Text>
+                </View>
+              </View>
+              <View style={styles.ambarMetrikSatir}>
+                <View style={styles.ambarMetrik}>
+                  <Text style={styles.ambarMetrikBaslik}>Kalan Yem</Text>
+                  <Text style={styles.ambarMetrikDeger}>
+                    {Number(ambarStok.toplamKg || 0).toLocaleString('tr-TR')} kg
+                  </Text>
+                </View>
+                <View style={styles.ambarMetrik}>
+                  <Text style={styles.ambarMetrikBaslik}>Stok Değeri</Text>
+                  <Text style={styles.ambarMetrikDeger}>
+                    {Number(ambarStok.toplamDeger || 0).toLocaleString('tr-TR')} TL
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Yem listesi (salt okunur, sadece ambar'dan) */}
+            {(ambarStok.yemler || []).length === 0 ? (
+              <BosDurum ikon="barley-off" mesaj="Ambar'da kümes yemi stoku yok" />
+            ) : (
+              (ambarStok.yemler || []).map((y, i) => (
+                <View key={y.id || i} style={styles.alimKart}>
+                  <View style={[styles.alimIkon, { backgroundColor: KUMES_RENK + '20' }]}>
+                    <MaterialCommunityIcons name="barley" size={22} color={KUMES_RENK} />
+                  </View>
+                  <View style={styles.alimBilgi}>
+                    <Text style={styles.alimTip}>{y.isim || y.tip || 'Yem'}</Text>
+                    <Text style={styles.alimAlt}>Kalan: {Math.round(y.kalanKg || 0)} kg</Text>
+                    {y.kgMaliyet > 0 && (
+                      <Text style={styles.alimKgFiyat}>{y.kgMaliyet?.toFixed(2)} TL/kg</Text>
+                    )}
+                  </View>
+                  <Text style={[styles.alimFiyat, { color: KUMES_RENK }]}>
+                    {Number(y.kalanDeger || 0).toLocaleString('tr-TR')} ₺
+                  </Text>
+                </View>
+              ))
+            )}
 
             {/* Toplam yem harcaması */}
             {yemAlimlar.length > 0 && (
@@ -1248,4 +1298,21 @@ ambarMetrikDeger: {
   fontWeight: '900',
   color: COLORS.textPrimary,
 },
+  ambarBilgiKutu: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#8E5A2A30',
+  },
+  ambarBilgiYazi: {
+    flex: 1,
+    fontSize: 12,
+    color: '#8E5A2A',
+    lineHeight: 18,
+  },
 });
