@@ -28,6 +28,8 @@ const MODUL_BILGI = {
   kumes: { label: 'Kümes', emoji: '🐔', renk: KUMES_RENK,  altYazi: 'Kümes — Tavuk & Yumurta Takibi', rozetYazi: 'KÜMES' },
 };
 
+// Virgüllü sayıları da parse et: "17,5" → 17.5
+const parseFiyat = (v) => parseFloat((v || '0').replace(',', '.')) || 0;
 export default function AyarlarScreen({ navigation, onModulDegis }) {
   const [aktifModul, setModul] = useState('besi');
   const [isPro, setIsPro] = useState(false);
@@ -218,30 +220,75 @@ export default function AyarlarScreen({ navigation, onModulDegis }) {
           />
         </AyarGrubu>
 
-        {/* Fiyat Ayarları — sadece Besi/Sürü modunda anlamlı */}
-        {aktifModul !== 'kumes' && (
-          <AyarGrubu baslik="FİYAT AYARLARI">
-            <FiyatInput
-              label="Canlı kg Fiyatı (TL)"
-              value={ayarlar.canliKgFiyat?.toString()}
-              onChange={(v) => handleAyarKaydet({ canliKgFiyat: parseFloat(v) || 0 })}
-              renk={modulRenk}
-            />
-            <FiyatInput
-              label="Karkas kg Fiyatı (TL)"
-              value={ayarlar.karkasKgFiyat?.toString()}
-              onChange={(v) => handleAyarKaydet({ karkasKgFiyat: parseFloat(v) || 0 })}
-              renk={modulRenk}
-            />
-            <FiyatInput
-              label="Randıman Oranı (0.50 - 0.65)"
-              value={ayarlar.randimanOrani?.toString()}
-              onChange={(v) => handleAyarKaydet({ randimanOrani: parseFloat(v) || 0.55 })}
-              renk={modulRenk}
-              klavye="decimal-pad"
-            />
-          </AyarGrubu>
-        )}
+       {/* Fiyat Ayarları — tüm modüller */}
+        <AyarGrubu baslik="FİYAT AYARLARI">
+          {/* BESİ */}
+          <View style={styles.fiyatGrupBaslik}>
+            <MaterialCommunityIcons name="cow" size={14} color={COLORS.besi} />
+            <Text style={[styles.fiyatGrupYazi, { color: COLORS.besi }]}>Besi Fiyatları</Text>
+          </View>
+          <FiyatInput
+            label="Besi Canlı Kg Fiyatı (TL)"
+            value={(ayarlar.besiCanliKgFiyati ?? ayarlar.canliKgFiyat ?? 0).toString()}
+            onChange={(v) => handleAyarKaydet({
+              besiCanliKgFiyati: parseFiyat(v),
+              canliKgFiyat: parseFiyat(v), // geriye uyumluluk
+            })}
+            renk={COLORS.besi}
+          />
+          <FiyatInput
+            label="Besi Karkas Kg Fiyatı (TL)"
+            value={(ayarlar.besiKarkasKgFiyati ?? ayarlar.karkasKgFiyat ?? 0).toString()}
+            onChange={(v) => handleAyarKaydet({
+              besiKarkasKgFiyati: parseFiyat(v),
+              karkasKgFiyat: parseFiyat(v), // geriye uyumluluk
+            })}
+            renk={COLORS.besi}
+          />
+          <FiyatInput
+            label="Randıman Oranı (0.50–0.65)"
+            value={(ayarlar.randimanOrani ?? 0.55).toString()}
+            onChange={(v) => handleAyarKaydet({ randimanOrani: parseFloat(v.replace(',', '.')) || 0.55 })}
+            renk={COLORS.besi}
+            klavye="decimal-pad"
+          />
+
+          {/* SÜT */}
+          <View style={styles.fiyatGrupBaslik}>
+            <MaterialCommunityIcons name="bottle-tonic-outline" size={14} color={COLORS.suru} />
+            <Text style={[styles.fiyatGrupYazi, { color: COLORS.suru }]}>Süt Fiyatları</Text>
+          </View>
+          <FiyatInput
+            label="Süt Litre Fiyatı (TL)"
+            value={(ayarlar.sutLitreFiyati ?? 0).toString()}
+            onChange={(v) => handleAyarKaydet({ sutLitreFiyati: parseFiyat(v) })}
+            renk={COLORS.suru}
+          />
+
+          {/* KÜMES */}
+          <View style={styles.fiyatGrupBaslik}>
+            <MaterialCommunityIcons name="bird" size={14} color={KUMES_RENK} />
+            <Text style={[styles.fiyatGrupYazi, { color: KUMES_RENK }]}>Kümes Fiyatları</Text>
+          </View>
+          <FiyatInput
+            label="Yumurta Adet Fiyatı (TL)"
+            value={(ayarlar.yumurtaAdetFiyati ?? 0).toString()}
+            onChange={(v) => handleAyarKaydet({ yumurtaAdetFiyati: parseFiyat(v) })}
+            renk={KUMES_RENK}
+          />
+          <FiyatInput
+            label="Tavuk Canlı Kg Fiyatı (TL)"
+            value={(ayarlar.tavukCanliKgFiyati ?? 0).toString()}
+            onChange={(v) => handleAyarKaydet({ tavukCanliKgFiyati: parseFiyat(v) })}
+            renk={KUMES_RENK}
+          />
+          <FiyatInput
+            label="Tavuk Et Kg Fiyatı (TL)"
+            value={(ayarlar.tavukEtKgFiyati ?? 0).toString()}
+            onChange={(v) => handleAyarKaydet({ tavukEtKgFiyati: parseFiyat(v) })}
+            renk={KUMES_RENK}
+          />
+        </AyarGrubu>
 
         {/* Veri Yönetimi */}
         <AyarGrubu baslik="VERİ YÖNETİMİ">
@@ -450,4 +497,19 @@ const styles = StyleSheet.create({
 
   kucukRozet: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   kucukRozetYazi: { fontSize: 11, fontWeight: '800', color: '#fff' },
+    
+  fiyatGrupBaslik: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  fiyatGrupYazi: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
 });
