@@ -13,12 +13,11 @@ import COLORS from '../theme/colors';
 import {
   getKumesGruplar, kumesGrupEkle, kumesGrupGuncelle, kumesGrupSil,
   getYumurtaKayitlari, yumurtaKayitEkle, yumurtaKayitSil, grupYumurtaKayitlari,
-  getKumesYemAlimlar, kumesYemAlimEkle, kumesYemAlimSil,
   getKumesSatislar, kumesSatisEkle, kumesSatisSil,
   getKumesKayiplar, kumesKayipEkle, kumesKayipSil,
   getKumesGenel, getProDurum, getAmbarStokOzeti,
 } from '../data/storage';
-import { KUMES_TIPLERI, KUMES_IRK_LISTESI, KUMES_YEM_TIPLERI, APP } from '../data/constants';
+import { KUMES_TIPLERI, KUMES_IRK_LISTESI, APP } from '../data/constants';
 
 const KUMES_RENK = '#A0522D';
 
@@ -34,14 +33,12 @@ const BOŞ_GRUP = {
 };
 
 const BOŞ_YUMURTA = { adet: '', kirik: '0', tarih: bugunTarih(), not: '' };
-const BOŞ_YEM = { tip: 'yemlik', miktar: '', fiyat: '', tarih: bugunTarih(), not: '' };
 const BOŞ_SATIS = { tip: 'yumurta', adet: '', birimFiyat: '', tutar: '', tarih: bugunTarih(), alici: '', not: '' };
 const BOŞ_KAYIP = { adet: '', sebep: '', tarih: bugunTarih(), not: '' };
 
 export default function KumesScreen() {
   const [gruplar, setGruplar] = useState([]);
   const [genel, setGenel] = useState(null);
-  const [yemAlimlar, setYemAlimlar] = useState([]);
   const [satislar, setSatislar] = useState([]);
   const [kayiplar, setKayiplar] = useState([]);
   const [isPro, setIsPro] = useState(false);
@@ -63,7 +60,6 @@ export default function KumesScreen() {
   const [grupEkleModal, setGrupEkleModal] = useState(false);
   const [grupDuzenleModal, setGrupDuzenleModal] = useState(false);
   const [yumurtaModal, setYumurtaModal] = useState(false);
-  const [yemModal, setYemModal] = useState(false);
   const [satisModal, setSatisModal] = useState(false);
   const [kayipModal, setKayipModal] = useState(false);
 
@@ -71,7 +67,6 @@ export default function KumesScreen() {
   const [grupForm, setGrupForm] = useState(BOŞ_GRUP);
   const [duzenleId, setDuzenleId] = useState(null);
   const [yumurtaForm, setYumurtaForm] = useState(BOŞ_YUMURTA);
-  const [yemForm, setYemForm] = useState(BOŞ_YEM);
   const [satisForm, setSatisForm] = useState(BOŞ_SATIS);
   const [kayipForm, setKayipForm] = useState({ ...BOŞ_KAYIP, grupId: null });
 
@@ -82,8 +77,6 @@ export default function KumesScreen() {
     setGruplar(g);
     const gen = await getKumesGenel();
     setGenel(gen);
-    const y = await getKumesYemAlimlar();
-    setYemAlimlar(y);
     const s = await getKumesSatislar();
     setSatislar(s);
     const stok = await getAmbarStokOzeti('kumes');
@@ -220,18 +213,7 @@ const handleGrupEkle = async () => {
     Alert.alert('Kaydedildi ✅', `${yumurtaForm.adet} adet yumurta kaydedildi.`);
   };
 
-  // ─── YEM ALIIM ────────────────────────────────────────────────
-  const handleYemEkle = async () => {
-    if (!yemForm.miktar || !yemForm.fiyat) {
-      Alert.alert('Eksik', 'Miktar ve fiyat zorunludur.');
-      return;
-    }
-    await kumesYemAlimEkle(yemForm);
-    setYemModal(false);
-    setYemForm(BOŞ_YEM);
-    veriYukle();
-  };
-
+ 
   // ─── SATIŞ ────────────────────────────────────────────────────
   const handleSatisEkle = async () => {
     if (!satisForm.tutar) {
@@ -579,63 +561,6 @@ const handleGrupEkle = async () => {
               ))
             )}
 
-            {/* Toplam yem harcaması */}
-            {yemAlimlar.length > 0 && (
-              <View style={[styles.finansKart, { marginBottom: 12 }]}>
-                <Text style={styles.bolumBaslik}>Yem Özeti</Text>
-                {KUMES_YEM_TIPLERI.map(tip => {
-                  const tipAlimlar = yemAlimlar.filter(a => a.tip === tip.id);
-                  if (tipAlimlar.length === 0) return null;
-                  const toplamKg = tipAlimlar.reduce((acc, a) => acc + parseFloat(a.miktar || 0), 0);
-                  const toplamTL = tipAlimlar.reduce((acc, a) => acc + parseFloat(a.fiyat || 0), 0);
-                  return (
-                    <View key={tip.id} style={styles.yemOzetSatir}>
-                      <MaterialCommunityIcons name={tip.icon} size={16} color={tip.renk} />
-                      <Text style={styles.yemOzetTip}>{tip.label}</Text>
-                      <Text style={styles.yemOzetKg}>{Math.round(toplamKg)} kg</Text>
-                      <Text style={[styles.yemOzetTl, { color: KUMES_RENK }]}>{Math.round(toplamTL).toLocaleString('tr-TR')} TL</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {yemAlimlar.length === 0 ? (
-              <BosDurum ikon="barley-off" mesaj="Henüz yem alımı yok" />
-            ) : (
-              yemAlimlar.map(a => {
-                const tipBilgi = KUMES_YEM_TIPLERI.find(t => t.id === a.tip);
-                const miktarSayi = parseFloat(a.miktar || 0);
-                const fiyatSayi = parseFloat(a.fiyat || 0);
-                const kgFiyat = miktarSayi > 0 ? (fiyatSayi / miktarSayi).toFixed(2) : null;
-                return (
-                  <View key={a.id} style={styles.alimKart}>
-                    <View style={[styles.alimIkon, { backgroundColor: (tipBilgi?.renk || KUMES_RENK) + '20' }]}>
-                      <MaterialCommunityIcons name={tipBilgi?.icon || 'barley'} size={22} color={tipBilgi?.renk || KUMES_RENK} />
-                    </View>
-                    <View style={styles.alimBilgi}>
-                      <Text style={styles.alimTip}>{tipBilgi?.label || a.tip}</Text>
-                      <Text style={styles.alimAlt}>{a.tarih} • {miktarSayi} kg</Text>
-                      {kgFiyat && <Text style={styles.alimKgFiyat}>{kgFiyat} TL/kg</Text>}
-                      {a.not ? <Text style={styles.alimNot}>{a.not}</Text> : null}
-                    </View>
-                    <Text style={[styles.alimFiyat, { color: KUMES_RENK }]}>{fiyatSayi.toLocaleString('tr-TR')} ₺</Text>
-                    <TouchableOpacity
-                      onPress={() => Alert.alert('Sil', 'Bu alım kaydını silmek istiyor musunuz?', [
-                        { text: 'İptal', style: 'cancel' },
-                        { text: 'Sil', style: 'destructive', onPress: async () => { await kumesYemAlimSil(a.id); veriYukle(); } },
-                      ])}
-                      style={{ padding: 6 }}
-                    >
-                      <MaterialCommunityIcons name="trash-can-outline" size={20} color={COLORS.danger} />
-                    </TouchableOpacity>
-                  </View>
-                );
-              })
-            )}
-          </View>
-        )}
-
         {/* ─── FİNANS TAB ─── */}
         {aktifTab === 'finans' && (
           <View>
@@ -800,48 +725,6 @@ const handleGrupEkle = async () => {
         </View>
       </Modal>
 
-      {/* ─── YEM MODAL ─── */}
-      <Modal visible={yemModal} animationType="slide" transparent>
-        <View style={styles.altModalArkaPlan}>
-          <SafeAreaView style={styles.altModalKutu}>
-            <View style={styles.modalUst}>
-              <Text style={styles.modalBaslik}>🌾 Yem Alımı</Text>
-              <TouchableOpacity onPress={() => { setYemModal(false); setYemForm(BOŞ_YEM); }}>
-                <MaterialCommunityIcons name="close" size={26} color={COLORS.textPrimary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={{ padding: 16 }}>
-              <Text style={styles.formLabel}>Yem Tipi</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-                {KUMES_YEM_TIPLERI.map(y => (
-                  <TouchableOpacity
-                    key={y.id}
-                    style={[styles.tipButon, yemForm.tip === y.id && { backgroundColor: y.renk, borderColor: y.renk }]}
-                    onPress={() => setYemForm({ ...yemForm, tip: y.id })}
-                  >
-                    <MaterialCommunityIcons name={y.icon} size={18} color={yemForm.tip === y.id ? '#fff' : y.renk} />
-                    <Text style={[styles.tipButonYazi, yemForm.tip === y.id && { color: '#fff' }]}>{y.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <FormInput label="Miktar (kg) *" placeholder="Örn: 200" value={yemForm.miktar} onChange={v => setYemForm({ ...yemForm, miktar: v })} klavye="numeric" />
-              <FormInput label="Toplam Fiyat (TL) *" placeholder="Örn: 1200" value={yemForm.fiyat} onChange={v => setYemForm({ ...yemForm, fiyat: v })} klavye="numeric" />
-              <FormInput label="Tarih" placeholder="01.06.2026" value={yemForm.tarih} onChange={v => setYemForm({ ...yemForm, tarih: v })} />
-              <FormInput label="Not" placeholder="Nereden alındı vb." value={yemForm.not} onChange={v => setYemForm({ ...yemForm, not: v })} />
-              {yemForm.miktar && yemForm.fiyat && parseFloat(yemForm.miktar) > 0 && (
-                <View style={[styles.onizleme, { backgroundColor: KUMES_RENK + '15' }]}>
-                  <Text style={[styles.onizlemeYazi, { color: KUMES_RENK }]}>
-                    kg başına ≈ {(parseFloat(yemForm.fiyat) / parseFloat(yemForm.miktar)).toFixed(2)} TL
-                  </Text>
-                </View>
-              )}
-              <TouchableOpacity style={[styles.kaydetButon, { backgroundColor: KUMES_RENK }]} onPress={handleYemEkle}>
-                <Text style={styles.kaydetYazi}>ALIMI KAYDET</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </SafeAreaView>
-        </View>
-      </Modal>
 
       {/* ─── SATIŞ MODAL ─── */}
       <Modal visible={satisModal} animationType="slide" transparent>
