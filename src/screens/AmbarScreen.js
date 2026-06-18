@@ -19,13 +19,14 @@ import {
   getAmbarYemleri,
   ambarYemEkle,
   ambarYemSil,
+  getAktifModul,
 } from '../data/storage';
 
 const AMBAR_RENK = '#8E5A2A';
 
 const BOS_YEM = {
   ad: '',
-  kategori: 'genel',
+  kategori: 'besi',
   miktarKg: '',
   toplamTutar: '',
   tarih: '',
@@ -33,10 +34,10 @@ const BOS_YEM = {
 };
 
 const KATEGORILER = [
-  { key: 'genel', label: 'Genel', icon: 'barn' },
   { key: 'besi', label: 'Besi', icon: 'cow' },
-  { key: 'sut', label: 'Süt', icon: 'cup-water' },
-  { key: 'kumes', label: 'Kümes', icon: 'bird' },
+  { key: 'sut', label: 'Süt/Sürü', icon: 'cup-water' },
+  { key: 'kumes', label: 'Kümes', icon: 'egg' },
+  { key: 'genel', label: 'Genel / Ortak', icon: 'barn' },
 ];
 
 function bugunTarih() {
@@ -64,6 +65,11 @@ function kgFormat(deger) {
 
 function kategoriBilgi(kategori) {
   return KATEGORILER.find((k) => k.key === kategori) || KATEGORILER[0];
+}
+function aktifModulKategorisi(modul) {
+  if (modul === 'suru' || modul === 'sut') return 'sut';
+  if (modul === 'kumes') return 'kumes';
+  return 'besi';
 }
 
 export default function AmbarScreen() {
@@ -122,6 +128,34 @@ export default function AmbarScreen() {
       return;
     }
 
+    const adKucuk = String(form.ad || '').toLocaleLowerCase('tr-TR');
+const ortakUyariGerekli =
+  form.kategori === 'genel' &&
+  ['saman', 'silaj', 'yonca'].some((kelime) => adKucuk.includes(kelime));
+
+if (ortakUyariGerekli) {
+  Alert.alert(
+    'Genel / Ortak Yem Uyarısı',
+    'Bu ürün kümes tarafında da görünebilir. Devam etmek istiyor musunuz?',
+    [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Devam Et',
+        onPress: async () => {
+          await ambarYemEkle({
+            ...form,
+            tarih: form.tarih || bugunTarih(),
+          });
+          setModalAcik(false);
+          setForm({ ...BOS_YEM, tarih: bugunTarih() });
+          veriYukle();
+        },
+      },
+    ]
+  );
+  return;
+}
+    
     await ambarYemEkle({
       ...form,
       tarih: form.tarih || bugunTarih(),
@@ -150,10 +184,13 @@ export default function AmbarScreen() {
     );
   };
 
-  const yeniYemModalAc = () => {
-    setForm({ ...BOS_YEM, tarih: bugunTarih() });
-    setModalAcik(true);
-  };
+  const yeniYemModalAc = async () => {
+  const modul = await getAktifModul();
+  const kategori = aktifModulKategorisi(modul);
+
+  setForm({ ...BOS_YEM, kategori, tarih: bugunTarih() });
+  setModalAcik(true);
+};
 
   return (
     <View style={styles.container}>
@@ -348,6 +385,19 @@ export default function AmbarScreen() {
                 );
               })}
             </View>
+
+              {form.kategori === 'genel' && (
+                 <View style={styles.ortakUyariKutu}>
+                 <MaterialCommunityIcons
+                 name="alert-circle-outline"
+                 size={18}
+                 color={AMBAR_RENK}
+               />
+            <Text style={styles.ortakUyariYazi}>
+                Bu ürün besi, süt/sürü ve kümes tarafında ortak görünür.
+           </Text>
+         </View>
+          )}
 
             <Text style={styles.inputEtiket}>Miktar Kg</Text>
             <TextInput
@@ -634,4 +684,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
   },
+  ortakUyariKutu: {
+  flexDirection: 'row',
+  gap: 8,
+  alignItems: 'center',
+  backgroundColor: '#FFF7EC',
+  borderRadius: 12,
+  padding: 10,
+  marginTop: 10,
+},
+ortakUyariYazi: {
+  flex: 1,
+  color: '#5D4037',
+  fontSize: 12,
+  lineHeight: 17,
+},
 });
