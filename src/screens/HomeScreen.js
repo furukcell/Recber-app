@@ -34,7 +34,8 @@ export default function HomeScreen({ navigation }) {
     const liste = await getHayvanlar();
     setHayvanlar(liste.filter(h => !h.satildiMi).slice(0, 3));
     // Stok artık Ambar'dan geliyor
-    const stok = await getAmbarStokOzeti(modul || 'besi');
+    const stokKategori = modul === 'suru' ? 'sut' : (modul || 'besi');
+    const stok = await getAmbarStokOzeti(stokKategori);
     setAmbarStok(stok);
   };
 
