@@ -13,11 +13,42 @@ import COLORS from '../theme/colors';
 import {
   getHayvanlar, getHaftalikKayitlar, getYemAlimlar,
   getSatislar, getSaglikKayitlar, getAktifModul, getAyarlar,
+  modulYemKullanimlari,
 } from '../data/storage';
 import {
   toplamMaliyet, tahminiSatisGeliri, tahminiKarZarar,
   besiGunuHesapla, gunlukCanliAgirlikArtisi,
 } from '../utils/hesaplama';
+
+function sayi(value) {
+  const n = parseFloat(value || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function isoBuAyMi(isoTarih) {
+  if (!isoTarih) return false;
+  const tarih = new Date(isoTarih);
+  if (Number.isNaN(tarih.getTime())) return false;
+
+  const bugun = new Date();
+  return (
+    tarih.getFullYear() === bugun.getFullYear() &&
+    tarih.getMonth() === bugun.getMonth()
+  );
+}
+
+function isoSonGunIcindeMi(isoTarih, gunSayisi) {
+  if (!isoTarih) return false;
+  const tarih = new Date(isoTarih);
+  if (Number.isNaN(tarih.getTime())) return false;
+
+  const bugun = new Date();
+  const baslangic = new Date();
+  baslangic.setDate(bugun.getDate() - (gunSayisi - 1));
+  baslangic.setHours(0, 0, 0, 0);
+
+  return tarih >= baslangic && tarih <= bugun;
+}
 
 export default function RaporScreen() {
   const [aktifModul, setModul] = useState('besi');
@@ -30,6 +61,9 @@ export default function RaporScreen() {
   const [seciliHayvan, setSeciliHayvan] = useState(null);
   const [aktifTab, setAktifTab] = useState('tavsiye');
   const [yenileniyor, setYenileniyor] = useState(false);
+
+  // Rasyon kaynaklı gerçek yem tüketim kayıtları (Ambar)
+  const [rasyonYemKullanimlari, setRasyonYemKullanimlari] = useState([]);
 
   const veriYukle = async () => {
     const modul = await getAktifModul();
@@ -50,6 +84,9 @@ export default function RaporScreen() {
     if (aktifler.length > 0 && !seciliHayvan) {
       setSeciliHayvan(aktifler[0]);
     }
+
+    const ry = await modulYemKullanimlari('besi');
+    setRasyonYemKullanimlari(Array.isArray(ry) ? ry : []);
   };
 
   useFocusEffect(useCallback(() => { veriYukle(); }, []));
@@ -95,6 +132,31 @@ export default function RaporScreen() {
     return { toplamSatis, toplamAlis, toplamYem, kar };
   };
 
+  // ─── RASYON / AMBAR YEM MALİYETİ ÖZETİ ────────────────────────
+  // Ambar üzerinden otomatik rasyon düşümüyle oluşan gerçek tüketim.
+  // Yem Alımları (yemAlimlar) ile karışmasın diye ayrı tutuluyor.
+  const rasyonMaliyetOzeti = () => {
+    const toplamKg = rasyonYemKullanimlari.reduce((acc, k) => acc + sayi(k.miktarKg), 0);
+    const toplamMaliyet = rasyonYemKullanimlari.reduce((acc, k) => acc + sayi(k.toplamMaliyet), 0);
+
+    const son7Kayitlar = rasyonYemKullanimlari.filter((k) => isoSonGunIcindeMi(k.tarih, 7));
+    const son7Kg = son7Kayitlar.reduce((acc, k) => acc + sayi(k.miktarKg), 0);
+    const son7Maliyet = son7Kayitlar.reduce((acc, k) => acc + sayi(k.toplamMaliyet), 0);
+
+    const buAyKayitlar = rasyonYemKullanimlari.filter((k) => isoBuAyMi(k.tarih));
+    const buAyMaliyet = buAyKayitlar.reduce((acc, k) => acc + sayi(k.toplamMaliyet), 0);
+
+    // Toplam kg canlı ağırlık artışı (aktif hayvanların alış-güncel farkı toplamı)
+    const toplamKgArtis = aktifHayvanlar.reduce((acc, h) => {
+      const fark = parseFloat(h.guncelKilo || 0) - parseFloat(h.alisKilo || 0);
+      return acc + Math.max(fark, 0);
+    }, 0);
+
+    const kgArtisBasinaMaliyet = toplamKgArtis > 0 ? (toplamMaliyet / toplamKgArtis).toFixed(2) : null;
+
+    return { toplamKg, toplamMaliyet, son7Kg, son7Maliyet, buAyMaliyet, kgArtisBasinaMaliyet };
+  };
+
   // WhatsApp raporu
   const whatsappGonder = async () => {
     try {
@@ -102,6 +164,7 @@ export default function RaporScreen() {
       const tarih = `${simdi.getDate().toString().padStart(2, '0')}.${(simdi.getMonth() + 1).toString().padStart(2, '0')}.${simdi.getFullYear()}`;
       const finans = genelFinans();
       const ozet = aylikOzet();
+      const rasyonOzet = rasyonMaliyetOzeti();
 
       let metin = `🐄 REÇBER RAPORU — ${tarih}\n`;
       metin += `${'─'.repeat(30)}\n\n`;
@@ -120,6 +183,17 @@ export default function RaporScreen() {
 
       metin += `\n${'─'.repeat(30)}\n`;
       metin += `🌾 BU AY YEM: ${ozet.toplamYem} kg (${ozet.tartimSayisi} tartım)\n`;
+
+      if (rasyonOzet.toplamMaliyet > 0) {
+        metin += `\n${'─'.repeat(30)}\n`;
+        metin += `🌽 RASYON YEM MALİYETİ (Ambar)\n`;
+        metin += `  Son 7 Gün: ${Math.round(rasyonOzet.son7Maliyet).toLocaleString('tr-TR')} TL (${rasyonOzet.son7Kg.toFixed(0)} kg)\n`;
+        metin += `  Bu Ay: ${Math.round(rasyonOzet.buAyMaliyet).toLocaleString('tr-TR')} TL\n`;
+        if (rasyonOzet.kgArtisBasinaMaliyet) {
+          metin += `  1 kg Canlı Ağırlık Artışı Maliyeti: ${rasyonOzet.kgArtisBasinaMaliyet} TL\n`;
+        }
+      }
+
       metin += `\n${'─'.repeat(30)}\n`;
 
       // Yem stokları
@@ -139,6 +213,7 @@ export default function RaporScreen() {
 
   const ozet = aylikOzet();
   const finans = genelFinans();
+  const rasyonOzet = rasyonMaliyetOzeti();
 
   const tabs = [
     { key: 'tavsiye', label: 'Sat/Bekle', ikon: 'calculator-variant' },
@@ -332,6 +407,53 @@ export default function RaporScreen() {
               </View>
             </View>
 
+            {/* ─── RASYON YEM MALİYETİ KARTI ─── */}
+            <View style={styles.finansalKart}>
+              <View style={styles.rasyonBaslikSatir}>
+                <Text style={styles.finansalBaslik}>🌽 Rasyon Yem Maliyeti</Text>
+                <MaterialCommunityIcons name="barn" size={20} color={modulRenk} />
+              </View>
+
+              {rasyonOzet.toplamMaliyet === 0 ? (
+                <BosDurum
+                  ikon="food-off-outline"
+                  mesaj="Henüz rasyon tüketim kaydı yok. Hayvan detayından rasyon tanımlayın."
+                />
+              ) : (
+                <>
+                  <View style={styles.yemMaliyetGrid}>
+                    <YemMaliyetMini
+                      label="Son 7 Gün"
+                      deger={`${Math.round(rasyonOzet.son7Maliyet).toLocaleString('tr-TR')} TL`}
+                      altDeger={`${rasyonOzet.son7Kg.toFixed(0)} kg`}
+                      renk={modulRenk}
+                    />
+                    <YemMaliyetMini
+                      label="Bu Ay"
+                      deger={`${Math.round(rasyonOzet.buAyMaliyet).toLocaleString('tr-TR')} TL`}
+                      renk={COLORS.accent}
+                    />
+                    <YemMaliyetMini
+                      label="Toplam"
+                      deger={`${Math.round(rasyonOzet.toplamMaliyet).toLocaleString('tr-TR')} TL`}
+                      altDeger={`${rasyonOzet.toplamKg.toFixed(0)} kg`}
+                      renk={COLORS.textSecondary}
+                    />
+                  </View>
+
+                  <View style={styles.kgMaliyetKutu}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.kgMaliyetBaslik}>1 kg Canlı Ağırlık Artışı Maliyeti</Text>
+                      <Text style={styles.kgMaliyetAlt}>Toplam yem masrafı / toplam kg artış</Text>
+                    </View>
+                    <Text style={[styles.kgMaliyetDeger, { color: modulRenk }]}>
+                      {rasyonOzet.kgArtisBasinaMaliyet ? `${rasyonOzet.kgArtisBasinaMaliyet} TL` : '—'}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
+
             {/* WhatsApp Rapor Butonu */}
             <TouchableOpacity
               style={[styles.whatsappButon, { backgroundColor: '#25D366' }]}
@@ -405,6 +527,16 @@ function FinansSatir({ label, deger, renk }) {
     <View style={styles.finansSatir}>
       <Text style={styles.finansLabel}>{label}</Text>
       <Text style={[styles.finansDeger, { color: renk }]}>{deger}</Text>
+    </View>
+  );
+}
+
+function YemMaliyetMini({ label, deger, altDeger, renk }) {
+  return (
+    <View style={styles.yemMaliyetMini}>
+      <Text style={styles.yemMaliyetLabel}>{label}</Text>
+      <Text style={[styles.yemMaliyetDeger, { color: renk }]}>{deger}</Text>
+      {altDeger ? <Text style={styles.yemMaliyetAltDeger}>{altDeger}</Text> : null}
     </View>
   );
 }
@@ -514,6 +646,35 @@ const styles = StyleSheet.create({
   karBaslik: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary, letterSpacing: 1 },
   karDeger: { fontSize: 28, fontWeight: '900' },
   karAlt: { fontSize: 11, color: COLORS.textLight },
+
+  rasyonBaslikSatir: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 14,
+  },
+
+  yemMaliyetGrid: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  yemMaliyetMini: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+  },
+  yemMaliyetLabel: { fontSize: 10, color: COLORS.textLight, marginBottom: 4 },
+  yemMaliyetDeger: { fontSize: 15, fontWeight: '900' },
+  yemMaliyetAltDeger: { fontSize: 10, color: COLORS.textLight, marginTop: 2 },
+
+  kgMaliyetKutu: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: COLORS.background, borderRadius: 12, padding: 14,
+  },
+  kgMaliyetBaslik: { fontSize: 13, fontWeight: '700', color: COLORS.textPrimary },
+  kgMaliyetAlt: { fontSize: 11, color: COLORS.textSecondary, marginTop: 2 },
+  kgMaliyetDeger: { fontSize: 20, fontWeight: '900' },
 
   whatsappButon: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
