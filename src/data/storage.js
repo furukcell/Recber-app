@@ -859,8 +859,20 @@ export const tumVerileriSil = async () => {
 export const getKumesGruplar = () => getItem(STORAGE_KEYS.kumesGruplar);
 export const saveKumesGruplar = (liste) => setItem(STORAGE_KEYS.kumesGruplar, liste);
 
-export const kumesGrupEkle = async (grup) => {
+export const kumesGrupEkle = async (grup, isPro = false) => {
   const liste = await getKumesGruplar();
+
+  // Free limit kontrolü: toplam tavuk 20
+  if (!isPro) {
+    const toplamTavuk = liste
+      .filter((g) => g.aktifMi)
+      .reduce((acc, g) => acc + parseFloat(g.mevcutSayi || 0), 0);
+    const yeniSayi = parseFloat(grup.mevcutSayi || 0);
+    if (toplamTavuk + yeniSayi > 20) {
+      return { limitAsildi: true };
+    }
+  }
+
   const yeni = {
     ...grup,
     id: generateId(),
