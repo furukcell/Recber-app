@@ -12,7 +12,7 @@
       }
     },
     "android": {
-  "package": "com.fkdigital.recber",
+  "package": "com.recber.app",
   "versionCode": 1,
   "permissions": [],
   "compileSdkVersion": 35,
