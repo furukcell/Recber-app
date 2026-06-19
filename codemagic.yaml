@@ -2,43 +2,33 @@ workflows:
   android-release:
     name: Recber Android Build
     max_build_duration: 60
-
     environment:
       groups:
         - recber
       node: 18.18.0
-
     scripts:
       - name: Install dependencies
         script: |
           npm install --legacy-peer-deps
-
       - name: Expo prebuild
         script: |
           npx expo prebuild --clean --platform android
           sed -i '' '/enableBundleCompression/d' android/app/build.gradle || true
-
-      - name: Build Android APK
+      - name: Build Android APK and AAB
         script: |
           cd android
-          ./gradlew assembleRelease
-
+          ./gradlew assembleRelease bundleRelease
       - name: Sign APK
         script: |
           echo "$CM_KEYSTORE" | base64 --decode > /tmp/keystore.jks
-
           cd android/app/build/outputs/apk/release
-
           BUILD_TOOLS_DIR=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
-
           if [ -f app-release-unsigned.apk ]; then
             INPUT_APK="app-release-unsigned.apk"
           else
             INPUT_APK="app-release.apk"
           fi
-
           "$BUILD_TOOLS_DIR/zipalign" -f -p 4 "$INPUT_APK" app-release-aligned.apk
-
           "$BUILD_TOOLS_DIR/apksigner" sign \
             --ks /tmp/keystore.jks \
             --ks-pass pass:"$CM_KEYSTORE_PASSWORD" \
@@ -46,12 +36,21 @@ workflows:
             --ks-key-alias "$CM_KEY_ALIAS" \
             --out app-release-signed.apk \
             app-release-aligned.apk
-
           "$BUILD_TOOLS_DIR/apksigner" verify --verbose app-release-signed.apk
-
+      - name: Sign AAB
+        script: |
+          cd android/app/build/outputs/bundle/release
+          jarsigner -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore /tmp/keystore.jks \
+            -storepass "$CM_KEYSTORE_PASSWORD" \
+            -keypass "$CM_KEY_PASSWORD" \
+            app-release.aab \
+            "$CM_KEY_ALIAS"
     artifacts:
       - android/app/build/outputs/apk/release/app-release-signed.apk
-
+      - android/app/build/outputs/bundle/release/app-release.aab
     publishing:
       email:
         recipients:
