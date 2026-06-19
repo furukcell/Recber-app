@@ -19,6 +19,7 @@ import KumesScreen from './src/screens/KumesScreen';
 import HakkimizdaScreen from './src/screens/HakkimizdaScreen';
 import KvkkEkrani from './src/screens/KvkkEkrani';
 import SuruRaporScreen from './src/screens/SuruRaporScreen';
+import KumesRaporScreen from './src/screens/KumesRaporScreen';
 import AmbarScreen from './src/screens/AmbarScreen';
 
 // Theme
@@ -51,7 +52,7 @@ function MainTabs({ aktifModul, onModulDegis }) {
       ? COLORS.suru
       : KUMES_RENK;
 
- const ikonlar = {
+const ikonlar = {
   'Ana Sayfa': 'home',
   Hayvanlar: 'cow',
   Yem: 'food-apple',
@@ -59,6 +60,7 @@ function MainTabs({ aktifModul, onModulDegis }) {
   Rapor: 'chart-line',
   Ayarlar: 'cog-outline',
   Kümes: 'bird',
+  'Kümes Rapor': 'chart-bar',
   Sürü: 'cow',
   'Süt Rapor': 'chart-bar',
 };
@@ -83,10 +85,12 @@ function MainTabs({ aktifModul, onModulDegis }) {
         ),
       })}
     >
-      {aktifModul === 'kumes' ? (
+     {aktifModul === 'kumes' ? (
         <>
           <Tab.Screen name="Kümes" component={KumesScreen} />
-   
+
+          <Tab.Screen name="Kümes Rapor" component={KumesRaporScreen} />
+
           <Tab.Screen
             name="Ayarlar"
             children={(props) => (
