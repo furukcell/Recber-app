@@ -16,6 +16,7 @@ import {
   getKumesSatislar, kumesSatisEkle, kumesSatisSil,
   getKumesKayiplar, kumesKayipEkle, kumesKayipSil,
   getKumesGenel, getProDurum, getAmbarStokOzeti,
+  hedefinAktifRasyonu, rasyonOlustur, rasyonGuncelle, rasyonSonlandir, rasyonlariUygula,
 } from '../data/storage';
 import { KUMES_TIPLERI, KUMES_IRK_LISTESI, APP } from '../data/constants';
 
@@ -36,7 +37,7 @@ const BOŞ_YUMURTA = { adet: '', kirik: '0', tarih: bugunTarih(), not: '' };
 const BOŞ_SATIS = { tip: 'yumurta', adet: '', birimFiyat: '', tutar: '', tarih: bugunTarih(), alici: '', not: '' };
 const BOŞ_KAYIP = { adet: '', sebep: '', tarih: bugunTarih(), not: '' };
 
-export default function KumesScreen() {
+export default function KumesScreen({ navigation }) {
   const [gruplar, setGruplar] = useState([]);
   const [genel, setGenel] = useState(null);
   const [satislar, setSatislar] = useState([]);
@@ -69,6 +70,10 @@ export default function KumesScreen() {
   const [yumurtaForm, setYumurtaForm] = useState(BOŞ_YUMURTA);
   const [satisForm, setSatisForm] = useState(BOŞ_SATIS);
   const [kayipForm, setKayipForm] = useState({ ...BOŞ_KAYIP, grupId: null });
+  const [rasyonModal, setRasyonModal] = useState(false);
+  const [rasyonGrup, setRasyonGrup] = useState(null);
+  const [rasyonKalemler, setRasyonKalemler] = useState({});
+  const [mevcutRasyon, setMevcutRasyon] = useState(null);
 
   const veriYukle = async () => {
     const pro = await getProDurum();
@@ -187,6 +192,8 @@ const handleGrupEkle = async () => {
         {
           text: 'Evet, Sil', style: 'destructive',
           onPress: async () => {
+            const aktifRasyon = await hedefinAktifRasyonu('kumes', grup.id);
+            if (aktifRasyon) await rasyonSonlandir(aktifRasyon.id);
             await kumesGrupSil(grup.id);
             if (seciliGrup?.id === grup.id) setSeciliGrup(null);
             veriYukle();
@@ -241,6 +248,73 @@ const handleGrupEkle = async () => {
     Alert.alert('Kaydedildi', `${kayipForm.adet} kayıp/ölüm kaydedildi.`);
   };
 
+// ─── RASYON ─────────────────────────────────────────────────
+  const openRasyonModal = async (grup) => {
+    setRasyonGrup(grup);
+    const aktif = await hedefinAktifRasyonu('kumes', grup.id);
+    setMevcutRasyon(aktif);
+    const baslangic = {};
+    if (aktif) {
+      aktif.kalemler.forEach(k => { baslangic[k.yemId] = String(k.gunlukKg); });
+    }
+    setRasyonKalemler(baslangic);
+    setRasyonModal(true);
+  };
+
+  const handleRasyonKaydet = async () => {
+    const kalemler = (ambarStok.yemler || [])
+      .map(y => ({
+        yemId: y.id,
+        yemAdi: y.ad,
+        gunlukKg: parseFloat(rasyonKalemler[y.id] || 0),
+      }))
+      .filter(k => k.gunlukKg > 0);
+
+    if (kalemler.length === 0) {
+      Alert.alert('Eksik', 'En az bir yem için günlük kg girin.');
+      return;
+    }
+
+    try {
+      await rasyonlariUygula();
+
+      if (mevcutRasyon) {
+        await rasyonGuncelle(mevcutRasyon.id, kalemler);
+      } else {
+        await rasyonOlustur({
+          modul: 'kumes',
+          kapsamTipi: 'grup',
+          hedefId: rasyonGrup.id,
+          hedefAd: rasyonGrup.isim,
+          kalemler,
+        });
+      }
+      setRasyonModal(false);
+      setRasyonGrup(null);
+      setRasyonKalemler({});
+      veriYukle();
+      Alert.alert('Kaydedildi ✅', 'Rasyon tanımlandı.');
+    } catch (e) {
+      Alert.alert('Hata', e.message || 'Rasyon kaydedilemedi.');
+    }
+  };
+
+  const handleRasyonSonlandir = async () => {
+    if (!mevcutRasyon) return;
+    Alert.alert('Rasyonu Sonlandır', 'Bu rasyon sonlandırılsın mı?', [
+      { text: 'Vazgeç', style: 'cancel' },
+      {
+        text: 'Sonlandır', style: 'destructive',
+        onPress: async () => {
+          await rasyonSonlandir(mevcutRasyon.id);
+          setRasyonModal(false);
+          setMevcutRasyon(null);
+          veriYukle();
+        },
+      },
+    ]);
+  };
+  
   // ─── RENDER ───────────────────────────────────────────────────
   const tabs = [
     { key: 'ozet',    label: 'Özet',    ikon: 'view-dashboard-outline' },
@@ -392,6 +466,7 @@ const handleGrupEkle = async () => {
                       Alert.alert(g.isim, 'Ne yapmak istiyorsunuz?', [
                         { text: 'İptal', style: 'cancel' },
                         { text: '✏️ Düzenle', onPress: () => handleGrupDuzenleBasin(g) },
+                        { text: '🌾 Rasyon', onPress: () => openRasyonModal(g) },
                         { text: g.aktifMi ? '📦 Arşivle' : '✅ Aktif Et', onPress: async () => { await kumesGrupGuncelle(g.id, { aktifMi: !g.aktifMi }); veriYukle(); } },
                         { text: '🗑️ Sil', style: 'destructive', onPress: () => handleGrupSil(g) },
                       ]);
@@ -805,6 +880,46 @@ const handleGrupEkle = async () => {
               <TouchableOpacity style={[styles.kaydetButon, { backgroundColor: COLORS.danger }]} onPress={handleKayipEkle}>
                 <Text style={styles.kaydetYazi}>KAYDET</Text>
               </TouchableOpacity>
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </Modal>
+                  {/* ─── RASYON MODAL ─── */}
+      <Modal visible={rasyonModal} animationType="slide" transparent>
+        <View style={styles.altModalArkaPlan}>
+          <SafeAreaView style={styles.altModalKutu}>
+            <View style={styles.modalUst}>
+              <Text style={styles.modalBaslik}>
+                🌾 Rasyon {rasyonGrup ? `— ${rasyonGrup.isim}` : ''}
+              </Text>
+              <TouchableOpacity onPress={() => { setRasyonModal(false); setRasyonGrup(null); setRasyonKalemler({}); }}>
+                <MaterialCommunityIcons name="close" size={26} color={COLORS.textPrimary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={{ padding: 16 }}>
+              <Text style={styles.formLabel}>Her yem için günlük kg girin (boş bırakılanlar kullanılmaz)</Text>
+              {(ambarStok.yemler || []).length === 0 ? (
+                <BosDurum ikon="barley-off" mesaj="Ambar'da kümes yemi yok. Önce Ambar'dan yem ekleyin." />
+              ) : (
+                (ambarStok.yemler || []).map(y => (
+                  <FormInput
+                    key={y.id}
+                    label={`${y.ad} (kg/gün)`}
+                    placeholder="Örn: 0.12"
+                    value={rasyonKalemler[y.id] || ''}
+                    onChange={v => setRasyonKalemler({ ...rasyonKalemler, [y.id]: v })}
+                    klavye="numeric"
+                  />
+                ))
+              )}
+              <TouchableOpacity style={[styles.kaydetButon, { backgroundColor: KUMES_RENK }]} onPress={handleRasyonKaydet}>
+                <Text style={styles.kaydetYazi}>RASYONU KAYDET</Text>
+              </TouchableOpacity>
+              {mevcutRasyon && (
+                <TouchableOpacity style={[styles.kaydetButon, { backgroundColor: COLORS.danger }]} onPress={handleRasyonSonlandir}>
+                  <Text style={styles.kaydetYazi}>RASYONU SONLANDIR</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </SafeAreaView>
         </View>
