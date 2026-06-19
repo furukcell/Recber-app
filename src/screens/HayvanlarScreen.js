@@ -65,7 +65,7 @@ export default function HayvanlarScreen({ navigation }) {
  // ─── HAYVAN EKLE ──────────────────────────────────────────────
 const handleEkleBasin = () => {
   if (besiLimitAsildi(aktifSayisi)) {
-    setProModal(true);
+    navigation.navigate('ProEkrani')
     return;
   }
 
