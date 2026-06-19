@@ -21,8 +21,7 @@
     },
     "plugins": [
       "expo-document-picker",
-      "expo-file-system",
-      "react-native-purchases"
+      "expo-file-system"
     ]
   }
 }
