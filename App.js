@@ -22,6 +22,7 @@ import KvkkEkrani from './src/screens/KvkkEkrani';
 import SuruRaporScreen from './src/screens/SuruRaporScreen';
 import KumesRaporScreen from './src/screens/KumesRaporScreen';
 import AmbarScreen from './src/screens/AmbarScreen';
+import ProEkrani from './src/screens/ProEkrani';
 
 // Theme
 import COLORS from './src/theme/colors';
@@ -265,6 +266,7 @@ export default function App() {
             <Stack.Screen name="Hakkimizda" component={HakkimizdaScreen} />
             <Stack.Screen name="Kvkk" component={KvkkEkrani} />
             <Stack.Screen name="Ambar" component={AmbarScreen} />
+            <Stack.Screen name="ProEkrani" component={ProEkrani} />
           </>
         )}
       </Stack.Navigator>
