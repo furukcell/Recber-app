@@ -90,10 +90,7 @@ export default function SuruScreen({ navigation }) {
 // ─── HAYVAN MODAL AÇ ──────────────────────────────────────────
 const handleHayvanModalAc = () => {
   if (sutLimitAsildi(hayvanlar.length)) {
-    Alert.alert(
-      'Reçber Pro Gerekli',
-      getProLimitMesaji('sut')
-    );
+    navigation.navigate('ProEkrani');
     return;
   }
 
@@ -103,10 +100,7 @@ const handleHayvanModalAc = () => {
 // ─── HAYVAN EKLE ──────────────────────────────────────────────
 const handleHayvanEkle = async () => {
   if (sutLimitAsildi(hayvanlar.length)) {
-    Alert.alert(
-      'Reçber Pro Gerekli',
-      getProLimitMesaji('sut')
-    );
+    navigation.navigate('ProEkrani');
     return;
   }
 
