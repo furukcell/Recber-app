@@ -120,10 +120,7 @@ const handleGrupEkle = async () => {
   const eklenecekTavukSayisi = Number(grupForm.baslangicSayi || 0);
 
   if (kumesLimitAsildi(toplamAktifTavukSayisi, eklenecekTavukSayisi)) {
-    Alert.alert(
-      'Reçber Pro Gerekli',
-      getProLimitMesaji('kumes')
-    );
+    navigation.navigate('ProEkrani');
     return;
   }
 
@@ -168,10 +165,7 @@ const handleGrupEkle = async () => {
     toplamAktifTavukSayisi - eskiSayi + yeniSayi;
 
   if (kumesLimitAsildi(0, duzenlemeSonrasiToplam)) {
-    Alert.alert(
-      'Reçber Pro Gerekli',
-      getProLimitMesaji('kumes')
-    );
+    navigation.navigate('ProEkrani');
     return;
   }
 
