@@ -1044,7 +1044,7 @@ export const getKumesGenel = async () => {
   const gruplar = await getKumesGruplar();
   const yumurtaKayitlari = await getYumurtaKayitlari();
   const satislar = await getKumesSatislar();
-  const yemAlimlar = await getKumesYemAlimlar();
+  const yemKullanimlari = await modulYemKullanimlari('kumes');
   const kayiplar = await getKumesKayiplar();
 
   const aktifGruplar = gruplar.filter((g) => g.aktifMi);
@@ -1080,9 +1080,9 @@ export const getKumesGenel = async () => {
     .filter((s) => s.tip === 'tavuk')
     .reduce((acc, s) => acc + parseFloat(s.tutar || 0), 0);
 
-  // Toplam yem maliyeti
-  const toplamYemMaliyet = yemAlimlar.reduce(
-    (acc, a) => acc + parseFloat(a.fiyat || 0), 0
+  // Toplam yem maliyeti (Ambar'daki gerçek rasyon tüketiminden)
+  const toplamYemMaliyet = yemKullanimlari.reduce(
+    (acc, k) => acc + parseFloat(k.toplamMaliyet || 0), 0
   );
 
   // Toplam alış maliyeti (gruplar)
