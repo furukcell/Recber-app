@@ -5,6 +5,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Purchases from 'react-native-purchases';
 
 // Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -32,6 +33,7 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 const KUMES_RENK = '#A0522D';
+const RC_ANDROID_KEY = 'goog_YOFODpPKityNfITpPAWeYQkeBaf';
 
 // ─── HAYVANLAR STACK ──────────────────────────────────────────────
 function HayvanlarStack() {
@@ -88,32 +90,22 @@ const ikonlar = {
      {aktifModul === 'kumes' ? (
         <>
           <Tab.Screen name="Kümes" component={KumesScreen} />
-
           <Tab.Screen name="Kümes Rapor" component={KumesRaporScreen} />
-
           <Tab.Screen
             name="Ayarlar"
             children={(props) => (
-              <AyarlarScreen
-                {...props}
-                onModulDegis={onModulDegis}
-              />
+              <AyarlarScreen {...props} onModulDegis={onModulDegis} />
             )}
           />
         </>
       ) : aktifModul === 'suru' ? (
         <>
           <Tab.Screen name="Sürü" component={SuruScreen} />
-
           <Tab.Screen name="Süt Rapor" component={SuruRaporScreen} />
-
           <Tab.Screen
             name="Ayarlar"
             children={(props) => (
-              <AyarlarScreen
-                {...props}
-                onModulDegis={onModulDegis}
-              />
+              <AyarlarScreen {...props} onModulDegis={onModulDegis} />
             )}
           />
         </>
@@ -124,25 +116,14 @@ const ikonlar = {
             component={HomeScreen}
             initialParams={{ aktifModul }}
           />
-
-          <Tab.Screen
-            name="Hayvanlar"
-            component={HayvanlarStack}
-          />
-
+          <Tab.Screen name="Hayvanlar" component={HayvanlarStack} />
           <Tab.Screen name="Yem" component={YemScreen} />
-
           <Tab.Screen name="Veteriner" component={VeterinerScreen} />
-
           <Tab.Screen name="Rapor" component={RaporScreen} />
-
           <Tab.Screen
             name="Ayarlar"
             children={(props) => (
-              <AyarlarScreen
-                {...props}
-                onModulDegis={onModulDegis}
-              />
+              <AyarlarScreen {...props} onModulDegis={onModulDegis} />
             )}
           />
         </>
@@ -155,7 +136,6 @@ const ikonlar = {
 function ModulSecimEkrani({ onSecim }) {
   return (
     <SafeAreaView style={styles.modulContainer}>
-      {/* Logo & Başlık */}
       <View style={styles.modulUst}>
         <Text style={styles.modulLogo}>🐄</Text>
         <Text style={styles.modulBaslik}>Reçber</Text>
@@ -164,7 +144,6 @@ function ModulSecimEkrani({ onSecim }) {
 
       <Text style={styles.modulSoru}>Hangi bölümle devam etmek istersiniz?</Text>
 
-      {/* Besi Kartı */}
       <TouchableOpacity
         style={[styles.modulKart, { borderColor: COLORS.besi }]}
         onPress={() => onSecim('besi')}
@@ -176,14 +155,11 @@ function ModulSecimEkrani({ onSecim }) {
         <View style={styles.modulBilgi}>
           <Text style={[styles.modulKartBaslik, { color: COLORS.besi }]}>Besi</Text>
           <Text style={styles.modulKartAlt}>Dana & Boğa Besi Takibi</Text>
-          <Text style={styles.modulKartDetay}>
-            Kilo takibi • Yem maliyeti • Satış kararı
-          </Text>
+          <Text style={styles.modulKartDetay}>Kilo takibi • Yem maliyeti • Satış kararı</Text>
         </View>
         <MaterialCommunityIcons name="chevron-right" size={28} color={COLORS.besi} />
       </TouchableOpacity>
 
-      {/* Sürü Kartı */}
       <TouchableOpacity
         style={[styles.modulKart, { borderColor: COLORS.suru }]}
         onPress={() => onSecim('suru')}
@@ -195,14 +171,11 @@ function ModulSecimEkrani({ onSecim }) {
         <View style={styles.modulBilgi}>
           <Text style={[styles.modulKartBaslik, { color: COLORS.suru }]}>Sürü</Text>
           <Text style={styles.modulKartAlt}>Süt İneği & Laktasyon Takibi</Text>
-          <Text style={styles.modulKartDetay}>
-            Süt verimi • Laktasyon • Meme sağlığı
-          </Text>
+          <Text style={styles.modulKartDetay}>Süt verimi • Laktasyon • Meme sağlığı</Text>
         </View>
         <MaterialCommunityIcons name="chevron-right" size={28} color={COLORS.suru} />
       </TouchableOpacity>
 
-      {/* Kümes Kartı */}
       <TouchableOpacity
         style={[styles.modulKart, { borderColor: KUMES_RENK }]}
         onPress={() => onSecim('kumes')}
@@ -214,9 +187,7 @@ function ModulSecimEkrani({ onSecim }) {
         <View style={styles.modulBilgi}>
           <Text style={[styles.modulKartBaslik, { color: KUMES_RENK }]}>Kümes</Text>
           <Text style={styles.modulKartAlt}>Tavuk & Yumurta Takibi</Text>
-          <Text style={styles.modulKartDetay}>
-            Yumurta verimi • Yem stoku • Satış geliri
-          </Text>
+          <Text style={styles.modulKartDetay}>Yumurta verimi • Yem stoku • Satış geliri</Text>
         </View>
         <MaterialCommunityIcons name="chevron-right" size={28} color={KUMES_RENK} />
       </TouchableOpacity>
@@ -235,23 +206,23 @@ export default function App() {
 
   useEffect(() => {
     const modulYukle = async () => {
+      // RevenueCat initialize
+      try {
+        Purchases.configure({ apiKey: RC_ANDROID_KEY });
+      } catch (e) {
+        console.error('RevenueCat başlatma hatası:', e);
+      }
+
       const kayitliModul = await getAktifModul();
-      // İlk kurulumda null döner, modül seçim ekranı gösterilir
       if (kayitliModul && kayitliModul !== 'ilkKurum') {
         setModul(kayitliModul);
       }
       setYukleniyor(false);
 
-      // Otomatik rasyon düşümü: uygulama her açıldığında, son hesaplanan
-      // tarihten bugüne kaç gün geçtiyse o kadarını Ambar'dan düşer.
-      // Modül seçimi yapılmamış olsa da (ilk kurulum) zararsızca boş döner.
       try {
         const { uyarilar } = await rasyonlariUygula();
         if (uyarilar && uyarilar.length > 0) {
-          Alert.alert(
-            'Rasyon Uyarısı',
-            uyarilar.join('\n\n')
-          );
+          Alert.alert('Rasyon Uyarısı', uyarilar.join('\n\n'));
         }
       } catch (e) {
         console.error('rasyonlariUygula hata:', e);
@@ -274,46 +245,35 @@ export default function App() {
     );
   }
 
- return (
-  <NavigationContainer>
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!aktifModul ? (
-        <Stack.Screen name="ModulSecim">
-          {() => <ModulSecimEkrani onSecim={handleModulSecim} />}
-        </Stack.Screen>
-      ) : (
-        <>
-          <Stack.Screen name="MainTabs">
-            {() => (
-              <MainTabs
-                aktifModul={aktifModul}
-                onModulDegis={handleModulSecim}
-              />
-            )}
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!aktifModul ? (
+          <Stack.Screen name="ModulSecim">
+            {() => <ModulSecimEkrani onSecim={handleModulSecim} />}
           </Stack.Screen>
-
-          <Stack.Screen
-           name="Hakkimizda"
-           component={HakkimizdaScreen}
-          />
-           <Stack.Screen
-             name="Kvkk"
-             component={KvkkEkrani}
-          />
-               <Stack.Screen
-               name="Ambar"
-               component={AmbarScreen}
-            />
-        </>
-      )}
-    </Stack.Navigator>
-  </NavigationContainer>
-);
+        ) : (
+          <>
+            <Stack.Screen name="MainTabs">
+              {() => (
+                <MainTabs
+                  aktifModul={aktifModul}
+                  onModulDegis={handleModulSecim}
+                />
+              )}
+            </Stack.Screen>
+            <Stack.Screen name="Hakkimizda" component={HakkimizdaScreen} />
+            <Stack.Screen name="Kvkk" component={KvkkEkrani} />
+            <Stack.Screen name="Ambar" component={AmbarScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
 }
 
 // ─── STİLLER ──────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  // Yükleme
   yuklemeEkrani: {
     flex: 1,
     backgroundColor: COLORS.primary,
@@ -330,8 +290,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     letterSpacing: 2,
   },
-
-  // Modül Seçim
   modulContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
