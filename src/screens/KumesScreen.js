@@ -107,12 +107,12 @@ export default function KumesScreen() {
 
    // ─── GRUP EKLE ─────────────────────────────────────────
 const handleGrupEkle = async () => {
-  if (!grupForm.isim || !grupForm.baslangicSayisi) {
+  if (!grupForm.isim || !grupForm.baslangicSayi) {
     Alert.alert('Eksik', 'Grup adı ve başlangıç sayısı zorunludur.');
     return;
   }
 
-  const eklenecekTavukSayisi = Number(grupForm.baslangicSayisi || 0);
+  const eklenecekTavukSayisi = Number(grupForm.baslangicSayi || 0);
 
   if (kumesLimitAsildi(toplamAktifTavukSayisi, eklenecekTavukSayisi)) {
     Alert.alert(
@@ -124,7 +124,7 @@ const handleGrupEkle = async () => {
 
   const yeni = {
     ...grupForm,
-    mevcutSayi: grupForm.baslangicSayisi,
+    mevcutSayi: grupForm.baslangicSayi,
   };
 
   await kumesGrupEkle(yeni);
