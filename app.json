@@ -5,23 +5,24 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./icon.png", 
+    "icon": "./icon.png",
     "extra": {
       "eas": {
         "projectId": "164e6281-f928-42ed-b998-7b216a92a312"
       }
     },
     "android": {
-  "package": "com.recber.app",
-  "versionCode": 1,
-  "permissions": [],
-  "compileSdkVersion": 35,
-  "targetSdkVersion": 35,
-  "minSdkVersion": 24
-},
+      "package": "com.recber.app",
+      "versionCode": 1,
+      "permissions": [],
+      "compileSdkVersion": 35,
+      "targetSdkVersion": 35,
+      "minSdkVersion": 24
+    },
     "plugins": [
       "expo-document-picker",
-      "expo-file-system"
+      "expo-file-system",
+      "react-native-purchases"
     ]
   }
 }
